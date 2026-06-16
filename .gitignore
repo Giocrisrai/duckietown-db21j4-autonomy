@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Modelos / pesos
+*.pt
+*.onnx
+*.engine
+runs/
+
+# Datos
+datasets/
+data/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
