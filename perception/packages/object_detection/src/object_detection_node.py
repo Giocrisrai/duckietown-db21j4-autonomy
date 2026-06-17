@@ -23,10 +23,13 @@ class ObjectDetectionNode:
     def cb(self, msg):
         arr = np.frombuffer(msg.data, np.uint8)
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if img is None:
+            rospy.logwarn("Frame corrupto: imdecode devolvio None, se descarta")
+            return
         dets = self.detector.infer(img)              # (N,6)
         out = Float32MultiArray()
-        out.layout.dim = [MultiArrayDimension(label="n", size=dets.shape[0], stride=dets.size),
-                          MultiArrayDimension(label="f", size=6, stride=6)]
+        out.layout.dim = [MultiArrayDimension(label="n", size=dets.shape[0], stride=6),
+                          MultiArrayDimension(label="f", size=6, stride=1)]
         out.data = dets.astype(np.float32).flatten().tolist()
         self.pub.publish(out)
 
