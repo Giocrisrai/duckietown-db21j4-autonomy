@@ -41,7 +41,6 @@ class TRTDetector:
     def _run(self, blob) -> np.ndarray:
         """Ejecuta el engine. Implementacion con buffers pycuda."""
         cuda = self._cuda
-        inp = self.engine.get_binding_shape(0)
         out_idx = 1
         out_shape = tuple(self.context.get_binding_shape(out_idx))
         out_host = np.empty(out_shape, dtype=np.float32)
