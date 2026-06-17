@@ -1,0 +1,8 @@
+# Grafo de intersecciones (no tiles): nodos = intersecciones, aristas = giros.
+nodes: [A, B, C, D]
+edges:
+  - {from: A, to: B, turn: straight}
+  - {from: B, to: C, turn: right}
+  - {from: C, to: D, turn: right}
+  - {from: D, to: A, turn: right}
+  - {from: A, to: C, turn: right}
