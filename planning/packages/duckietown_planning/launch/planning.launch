@@ -2,9 +2,22 @@
 <launch>
   <arg name="veh" doc="hostname del robot"/>
   <arg name="use_global_planner" default="false"/>
+  <arg name="map_path" default="" doc="ruta al mapa YAML (solo planeador global)"/>
+  <arg name="start" default="" doc="nodo inicial (solo planeador global)"/>
+  <arg name="goal" default="" doc="nodo destino (solo planeador global)"/>
   <group ns="$(arg veh)">
+    <!-- Navegador reactivo: base que siempre funciona. -->
     <node name="intersection_navigator_node" pkg="duckietown_planning"
           type="intersection_navigator_node.py" output="screen">
+      <remap from="~at_stop_line" to="stop_line_filter_node/at_stop_line"/>
+      <remap from="~planned_turn" to="route_planner_node/planned_turn"/>
+    </node>
+    <!-- Planeador global: aditivo, solo si use_global_planner:=true. -->
+    <node if="$(arg use_global_planner)" name="route_planner_node" pkg="duckietown_planning"
+          type="route_planner_node.py" output="screen">
+      <param name="map_path" value="$(arg map_path)"/>
+      <param name="start" value="$(arg start)"/>
+      <param name="goal" value="$(arg goal)"/>
       <remap from="~at_stop_line" to="stop_line_filter_node/at_stop_line"/>
     </node>
   </group>
