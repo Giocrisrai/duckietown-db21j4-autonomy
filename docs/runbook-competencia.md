@@ -17,10 +17,9 @@
 
 ## Fallbacks en cascada (de más a menos funcionalidad)
 - Falla el planeador global → `use_global_planner:=false` (reactivo siempre funciona).
-- Falla YOLO/TensorRT → comentar el include de `object_detection` en `full_stack.launch`
-  y correr solo seguir línea + intersecciones.
+- Falla YOLO/TensorRT → arrancar con `use_object_detection:=false` (solo seguir línea + intersecciones).
 - Falla una intersección → bajar velocidad (`lane_controller` `v_bar`) y reintentar.
 - Todo lo demás falla → `lane_following.launch` solo (mínimo: dar vueltas al loop).
 
 ## Comando de arranque
-roslaunch bringup full_stack.launch veh:=<hostname> use_global_planner:=<true|false>
+roslaunch bringup full_stack.launch veh:=<hostname> use_global_planner:=<true|false> use_object_detection:=<true|false>
