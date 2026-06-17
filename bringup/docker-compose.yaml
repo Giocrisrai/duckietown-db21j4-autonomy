@@ -1,0 +1,11 @@
+version: "3.7"
+services:
+  new-stack:
+    image: duckietown-new-version:latest        # build arm64 con dts devel build
+    network_mode: host
+    privileged: true
+    volumes:
+      - /data:/data                              # contiene /data/model.engine
+    environment:
+      - VEHICLE_NAME=${VEHICLE_NAME}
+    command: roslaunch bringup full_stack.launch veh:=${VEHICLE_NAME}
