@@ -1,0 +1,12 @@
+[project]
+name = "duckietown-new-version"
+version = "0.1.0"
+requires-python = ">=3.9"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "training",
+  "perception/packages/object_detection/src",
+  "planning/packages/duckietown_planning/src",
+]
+testpaths = ["training/tests", "perception/tests", "planning/tests"]
