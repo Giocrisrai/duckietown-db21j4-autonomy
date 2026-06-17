@@ -20,6 +20,7 @@
 - Falla YOLO/TensorRT → arrancar con `use_object_detection:=false` (solo seguir línea + intersecciones).
 - Falla una intersección → bajar velocidad (`lane_controller` `v_bar`) y reintentar.
 - Todo lo demás falla → `lane_following.launch` solo (mínimo: dar vueltas al loop).
+- NOTA: el comando de giro (~turn_cmd del navegador) debe conectarse al control de intersecciones de dt-core/dt-car-interface en el robot para que el giro se ejecute físicamente. Verificar este puente en el primer arranque.
 
 ## Comando de arranque
 roslaunch bringup full_stack.launch veh:=<hostname> use_global_planner:=<true|false> use_object_detection:=<true|false>

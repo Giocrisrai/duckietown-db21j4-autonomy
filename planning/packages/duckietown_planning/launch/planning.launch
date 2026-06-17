@@ -18,7 +18,7 @@
       <param name="map_path" value="$(arg map_path)"/>
       <param name="start" value="$(arg start)"/>
       <param name="goal" value="$(arg goal)"/>
-      <remap from="~at_stop_line" to="stop_line_filter_node/at_stop_line"/>
+      <remap from="~executed_turn" to="intersection_navigator_node/turn_cmd"/>
     </node>
   </group>
 </launch>
