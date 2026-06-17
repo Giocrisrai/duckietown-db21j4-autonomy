@@ -9,6 +9,7 @@ class IntersectionNavigatorNode:
     def __init__(self):
         rospy.init_node("intersection_navigator_node")
         self.planned_turn = None
+        self._prev_stop = False
         self.pub_turn = rospy.Publisher("~turn_cmd", String, queue_size=1)
         rospy.Subscriber("~at_stop_line", Bool, self.cb_stop_line, queue_size=1)
         rospy.Subscriber("~planned_turn", String, self.cb_planned, queue_size=1)
@@ -18,7 +19,9 @@ class IntersectionNavigatorNode:
         self.planned_turn = msg.data or None
 
     def cb_stop_line(self, msg):
-        if not msg.data:
+        rising = msg.data and not self._prev_stop   # solo flanco False->True
+        self._prev_stop = msg.data
+        if not rising:
             return
         # Salidas disponibles: en una interseccion estandar Duckietown asumimos
         # las tres; el FSM real puede filtrarlas. Reactivo robusto por defecto.

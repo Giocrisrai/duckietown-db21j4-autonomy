@@ -19,11 +19,15 @@ class RoutePlannerNode:
         goal = rospy.get_param("~goal", "")
         self.route = []
         self.loc = None
+        self._prev_stop = False
         if map_path and start and goal:
             graph = load_map(map_path)
             self.route = plan_route(graph, start, goal) or []
             self.loc = IntersectionLocalizer(graph, start)
-            rospy.loginfo("Ruta planeada %s->%s: %s", start, goal, self.route)
+            if self.route:
+                rospy.loginfo("Ruta planeada %s->%s: %s", start, goal, self.route)
+            else:
+                rospy.logwarn("plan_route no encontro ruta %s->%s: el reactivo decidira solo.", start, goal)
         else:
             rospy.logwarn("Sin mapa/destino: el reactivo decidira solo.")
         self.pub = rospy.Publisher("~planned_turn", String, queue_size=1, latch=True)
@@ -35,7 +39,9 @@ class RoutePlannerNode:
             self.pub.publish(String(data=self.route[0]))
 
     def cb_stop_line(self, msg):
-        if not msg.data or not self.route:
+        rising = msg.data and not self._prev_stop   # solo flanco False->True
+        self._prev_stop = msg.data
+        if not rising or not self.route:
             return
         turn = self.route.pop(0)
         if self.loc:
