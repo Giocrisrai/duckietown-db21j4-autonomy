@@ -1,0 +1,11 @@
+<!-- planning/packages/duckietown_planning/launch/planning.launch -->
+<launch>
+  <arg name="veh" doc="hostname del robot"/>
+  <arg name="use_global_planner" default="false"/>
+  <group ns="$(arg veh)">
+    <node name="intersection_navigator_node" pkg="duckietown_planning"
+          type="intersection_navigator_node.py" output="screen">
+      <remap from="~at_stop_line" to="stop_line_filter_node/at_stop_line"/>
+    </node>
+  </group>
+</launch>
