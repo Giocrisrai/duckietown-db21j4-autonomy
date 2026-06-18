@@ -2240,3 +2240,465 @@ git commit -m "feat(env): entorno reproducible (Makefile, requirements-dev, note
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
+
+---
+
+## FASE P7 — Extensiones de percepción + despliegue real
+
+> Objetivo: potenciar la percepción (AprilTags, freno ToF), validar la ruta ONNX end-to-end de verdad, y dejar listo el despliegue al robot (Dockerfile/dtproject) y CI.
+
+### Task 26: Política y nodo de AprilTags
+
+**Files:**
+- Create: `perception/packages/object_detection/src/object_detection/apriltag_policy.py`
+- Create: `perception/packages/object_detection/src/apriltag_node.py`
+- Test: `perception/tests/test_apriltag_policy.py`
+- Modify: `perception/packages/object_detection/CMakeLists.txt` (instalar `apriltag_node.py`)
+
+**Interfaces:**
+- Produces: `TAG_MEANINGS` (dict id→(tipo,accion)); `tag_meaning(tag_id, table=TAG_MEANINGS) -> (str, str|None)`; `select_action(tag_ids, table=TAG_MEANINGS, priority=("stop","yield")) -> str|None`.
+
+- [ ] **Step 1: Test que falla**
+
+```python
+# perception/tests/test_apriltag_policy.py
+from object_detection.apriltag_policy import tag_meaning, select_action, TAG_MEANINGS
+
+def test_tag_conocido():
+    assert tag_meaning(1) == ("stop", "stop")
+
+def test_tag_desconocido():
+    assert tag_meaning(9999) == ("unknown", None)
+
+def test_select_prioriza_stop():
+    assert select_action([10, 1]) == "stop"   # stop manda sobre turn_left
+
+def test_select_fallback_accion_conocida():
+    assert select_action([10]) == "left"
+
+def test_select_sin_conocidos():
+    assert select_action([9999]) is None
+```
+
+- [ ] **Step 2: Correr y ver fallar**
+
+Run: `python -m pytest perception/tests/test_apriltag_policy.py -v`
+Expected: FAIL (módulo inexistente).
+
+- [ ] **Step 3: Implementar `apriltag_policy.py`**
+
+```python
+# perception/packages/object_detection/src/object_detection/apriltag_policy.py
+"""Mapea IDs de AprilTag de Duckietown a su significado semantico y accion.
+
+El mapa es ajustable a la pista; los ids de ejemplo siguen convenciones comunes
+de Duckietown (señales de stop / interseccion / direccion).
+"""
+
+TAG_MEANINGS = {
+    1: ("stop", "stop"),
+    2: ("t_intersection", "yield"),
+    10: ("turn_left", "left"),
+    11: ("turn_right", "right"),
+    12: ("go_straight", "straight"),
+}
+
+def tag_meaning(tag_id, table=TAG_MEANINGS):
+    """Devuelve (tipo, accion) para un tag id; ('unknown', None) si no se conoce."""
+    return table.get(tag_id, ("unknown", None))
+
+def select_action(tag_ids, table=TAG_MEANINGS, priority=("stop", "yield")):
+    """Accion mas prioritaria entre los tags detectados.
+
+    'stop' y 'yield' (por `priority`) mandan; si no hay, la primera accion
+    conocida; None si ningun tag es conocido.
+    """
+    meanings = [tag_meaning(t, table) for t in tag_ids]
+    for tipo in priority:
+        for m_tipo, m_accion in meanings:
+            if m_tipo == tipo:
+                return m_accion
+    for _m_tipo, m_accion in meanings:
+        if m_accion is not None:
+            return m_accion
+    return None
+```
+
+- [ ] **Step 4: Correr y ver pasar**
+
+Run: `python -m pytest perception/tests/test_apriltag_policy.py -v`
+Expected: PASS (5 passed).
+
+- [ ] **Step 5: Escribir el nodo `apriltag_node.py`**
+
+```python
+#!/usr/bin/env python3
+# perception/packages/object_detection/src/apriltag_node.py
+"""Nodo ROS: detecta AprilTags y publica la accion semantica sugerida."""
+import rospy
+import numpy as np
+import cv2
+from sensor_msgs.msg import CompressedImage
+from std_msgs.msg import String
+from object_detection.apriltag_policy import select_action
+
+class AprilTagNode:
+    def __init__(self):
+        rospy.init_node("apriltag_node")
+        from dt_apriltags import Detector
+        self.detector = Detector(families="tag36h11")
+        self.pub = rospy.Publisher("~action", String, queue_size=1)
+        self.sub = rospy.Subscriber("~image/compressed", CompressedImage,
+                                    self.cb, queue_size=1, buff_size=2**24)
+        rospy.loginfo("apriltag_node listo")
+
+    def cb(self, msg):
+        arr = np.frombuffer(msg.data, np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
+        if img is None:
+            rospy.logwarn("Frame corrupto en apriltag_node, se descarta")
+            return
+        tags = self.detector.detect(img)
+        accion = select_action([t.tag_id for t in tags])
+        if accion is not None:
+            self.pub.publish(String(data=accion))
+
+if __name__ == "__main__":
+    AprilTagNode()
+    rospy.spin()
+```
+
+- [ ] **Step 6: Instalar el nodo en CMakeLists** — en `perception/packages/object_detection/CMakeLists.txt`, en `catkin_install_python(PROGRAMS ...)` añadir `src/apriltag_node.py` junto a `src/object_detection_node.py`.
+
+- [ ] **Step 7: Verificar**
+
+Run: `python -m py_compile perception/packages/object_detection/src/apriltag_node.py && echo "compila OK" && python -m pytest perception/tests/test_apriltag_policy.py -q`
+Expected: `compila OK` y 5 passed.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add perception/packages/object_detection/src/object_detection/apriltag_policy.py perception/packages/object_detection/src/apriltag_node.py perception/tests/test_apriltag_policy.py perception/packages/object_detection/CMakeLists.txt
+git commit -m "feat(perception): politica y nodo de AprilTags (señales/semaforos)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 27: Freno de emergencia con ToF VL53L0X
+
+**Files:**
+- Create: `planning/packages/duckietown_planning/src/duckietown_planning/safety.py`
+- Create: `planning/packages/duckietown_planning/src/emergency_brake_node.py`
+- Test: `planning/tests/test_safety.py`
+- Modify: `planning/packages/duckietown_planning/CMakeLists.txt` (instalar `emergency_brake_node.py`)
+
+**Interfaces:**
+- Produces: `should_brake(distance_m, threshold_m=0.15) -> bool`. Distancia `None` o `<=0` = lectura inválida → no frena.
+
+- [ ] **Step 1: Test que falla**
+
+```python
+# planning/tests/test_safety.py
+from duckietown_planning.safety import should_brake
+
+def test_frena_si_cerca():
+    assert should_brake(0.10) is True
+
+def test_no_frena_si_lejos():
+    assert should_brake(0.50) is False
+
+def test_lectura_invalida_no_frena():
+    assert should_brake(0.0) is False
+    assert should_brake(None) is False
+
+def test_umbral_personalizado():
+    assert should_brake(0.25, threshold_m=0.30) is True
+```
+
+- [ ] **Step 2: Correr y ver fallar**
+
+Run: `python -m pytest planning/tests/test_safety.py -v`
+Expected: FAIL (módulo inexistente).
+
+- [ ] **Step 3: Implementar `safety.py`**
+
+```python
+# planning/packages/duckietown_planning/src/duckietown_planning/safety.py
+"""Logica de freno de emergencia basada en la distancia del ToF VL53L0X."""
+
+def should_brake(distance_m, threshold_m: float = 0.15) -> bool:
+    """True si hay un obstaculo dentro del umbral (metros).
+
+    Una lectura None o <= 0 se considera invalida (fuera de rango / error del
+    sensor) y NO dispara el freno, para evitar frenazos por ruido.
+    """
+    if distance_m is None or distance_m <= 0:
+        return False
+    return distance_m <= threshold_m
+```
+
+- [ ] **Step 4: Correr y ver pasar**
+
+Run: `python -m pytest planning/tests/test_safety.py -v`
+Expected: PASS (4 passed).
+
+- [ ] **Step 5: Escribir el nodo `emergency_brake_node.py`**
+
+```python
+#!/usr/bin/env python3
+# planning/packages/duckietown_planning/src/emergency_brake_node.py
+"""Nodo ROS: frena de emergencia si el ToF detecta un obstaculo cercano."""
+import rospy
+from std_msgs.msg import Bool, Float32
+from duckietown_planning.safety import should_brake
+
+class EmergencyBrakeNode:
+    def __init__(self):
+        rospy.init_node("emergency_brake_node")
+        self.threshold = rospy.get_param("~threshold_m", 0.15)
+        self.pub = rospy.Publisher("~emergency_stop", Bool, queue_size=1)
+        rospy.Subscriber("~range", Float32, self.cb, queue_size=1)
+        rospy.loginfo("emergency_brake_node listo (umbral=%.2fm)", self.threshold)
+
+    def cb(self, msg):
+        frenar = should_brake(msg.data, self.threshold)
+        self.pub.publish(Bool(data=frenar))
+
+if __name__ == "__main__":
+    EmergencyBrakeNode()
+    rospy.spin()
+```
+
+- [ ] **Step 6: Instalar el nodo en CMakeLists** — en `planning/packages/duckietown_planning/CMakeLists.txt`, añadir `src/emergency_brake_node.py` al `catkin_install_python(PROGRAMS ...)`.
+
+- [ ] **Step 7: Verificar**
+
+Run: `python -m py_compile planning/packages/duckietown_planning/src/emergency_brake_node.py && echo "compila OK" && python -m pytest planning/tests/test_safety.py -q`
+Expected: `compila OK` y 4 passed.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add planning/packages/duckietown_planning/src/duckietown_planning/safety.py planning/packages/duckietown_planning/src/emergency_brake_node.py planning/tests/test_safety.py planning/packages/duckietown_planning/CMakeLists.txt
+git commit -m "feat(planning): freno de emergencia con ToF VL53L0X
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 28: Simulación de percepción ONNX end-to-end (real)
+
+**Files:**
+- Create: `tools/make_dummy_onnx.py`
+- Create: `simulation/sim_perception.py`
+- Test: `simulation/tests/test_sim_perception.py`
+- Modify: `requirements-dev.txt` (añadir `onnx>=1.16`)
+
+**Interfaces:**
+- Consumes: `ONNXDetector` (Task 21).
+- Produces: `make_dummy_onnx(path, dets) -> str` (modelo ONNX sintético que emite `dets`); `run_perception_sim(model_path, img) -> np.ndarray (N,6)`.
+
+- [ ] **Step 1: Añadir `onnx>=1.16` a `requirements-dev.txt`** (manteniendo las demás).
+
+- [ ] **Step 2: Test que falla**
+
+```python
+# simulation/tests/test_sim_perception.py
+import numpy as np
+from sim_perception import make_dummy_onnx, run_perception_sim
+
+def test_sim_percepcion_end_to_end(tmp_path):
+    dets = np.array([[[100., 100., 200., 200., 0.9, 0.],
+                      [10., 10., 20., 20., 0.1, 1.]]], dtype=np.float32)
+    path = make_dummy_onnx(str(tmp_path / "dummy.onnx"), dets)
+    img = np.zeros((416, 416, 3), dtype=np.uint8)
+    out = run_perception_sim(path, img)
+    assert out.shape == (1, 6)      # la de score 0.1 se filtra
+    assert out[0, 5] == 0.0         # clase duckie
+```
+
+- [ ] **Step 3: Correr y ver fallar**
+
+Run: `pip install onnx onnxruntime numpy opencv-python-headless && python -m pytest simulation/tests/test_sim_perception.py -v`
+Expected: FAIL (módulo inexistente).
+
+- [ ] **Step 4: Implementar `sim_perception.py`** (en `simulation/`)
+
+```python
+# simulation/sim_perception.py
+"""Simulacion de percepcion end-to-end con ONNX Runtime (sin robot, sin entrenar).
+
+Genera un modelo ONNX sintetico que emite detecciones fijas y lo corre con la
+misma clase de inferencia del proyecto (ONNXDetector), validando toda la ruta
+letterbox -> ONNX Runtime -> postproceso en la Mac.
+"""
+import numpy as np
+from object_detection.onnx_inference import ONNXDetector
+
+def make_dummy_onnx(path, dets):
+    """Crea un ONNX que ignora la entrada y emite `dets` (1,N,6) como salida."""
+    import onnx
+    from onnx import helper, TensorProto
+    dets = np.asarray(dets, dtype=np.float32)
+    inp = helper.make_tensor_value_info("images", TensorProto.FLOAT, [1, 3, 416, 416])
+    out = helper.make_tensor_value_info("output", TensorProto.FLOAT, list(dets.shape))
+    const = helper.make_node(
+        "Constant", [], ["output"],
+        value=helper.make_tensor("c", TensorProto.FLOAT, dets.shape, dets.flatten().tolist()))
+    graph = helper.make_graph([const], "dummy", [inp], [out])
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 12)])
+    onnx.save(model, path)
+    return path
+
+def run_perception_sim(model_path, img):
+    """Corre ONNXDetector (onnxruntime real) sobre `img`. Devuelve detecciones (N,6)."""
+    det = ONNXDetector(model_path)
+    return det.infer(img)
+```
+
+- [ ] **Step 5: Correr y ver pasar**
+
+Run: `python -m pytest simulation/tests/test_sim_perception.py -v`
+Expected: PASS (1 passed).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add tools/make_dummy_onnx.py simulation/sim_perception.py simulation/tests/test_sim_perception.py requirements-dev.txt
+git commit -m "feat(sim): simulacion de percepcion ONNX end-to-end con modelo sintetico
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+> NOTA: `tools/make_dummy_onnx.py` es opcional como CLI; la función vive en `sim_perception.py`. Si se desea un CLI, crear `tools/make_dummy_onnx.py` que importe y llame `make_dummy_onnx`. No es requerido por el test.
+
+---
+
+### Task 29: Dockerfile / dtproject para despliegue en el robot
+
+**Files:**
+- Create: `Dockerfile`
+- Create: `requirements-robot.txt`
+- Create: `.dtproject`
+- Modify: `docs/runbook-competencia.md` (sección build/deploy)
+
+**Interfaces:**
+- Produces: imagen construible con `dts devel build -H <hostname>` que compila los paquetes catkin y arranca `bringup/full_stack.launch`.
+
+- [ ] **Step 1: Escribir `requirements-robot.txt`** (solo deps Python del robot; cv2/tensorrt vienen del base)
+
+```text
+numpy
+pyyaml
+dt-apriltags
+```
+
+- [ ] **Step 2: Escribir `Dockerfile`** (plantilla alineada al template-ros de Duckietown `ente`)
+
+```dockerfile
+# Dockerfile — imagen arm64 para el Duckiebot DB21-J4 (distro ente).
+# Construir con: dts devel build -H <hostname>
+# NOTA: alinear BASE_IMAGE/BASE_TAG con el template-ros de tu version de dts.
+ARG ARCH=arm64v8
+ARG DISTRO=ente
+ARG BASE_IMAGE=dt-ros-commons
+ARG BASE_TAG=${DISTRO}-${ARCH}
+FROM duckietown/${BASE_IMAGE}:${BASE_TAG}
+
+ARG REPO_PATH="${CATKIN_WS_DIR}/src/duckietown_new_version"
+RUN mkdir -p "${REPO_PATH}"
+COPY ./perception "${REPO_PATH}/perception"
+COPY ./planning "${REPO_PATH}/planning"
+COPY ./bringup "${REPO_PATH}/bringup"
+
+COPY ./requirements-robot.txt "${REPO_PATH}/requirements-robot.txt"
+RUN pip3 install -r "${REPO_PATH}/requirements-robot.txt"
+
+# Compila el catkin_ws con nuestros paquetes
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \
+    catkin build --workspace "${CATKIN_WS_DIR}"
+
+CMD ["roslaunch", "bringup", "full_stack.launch"]
+```
+
+- [ ] **Step 3: Escribir `.dtproject`** (metadatos del proyecto dts)
+
+```text
+TYPE=template-ros
+TYPE_VERSION=4
+VERSION=ente
+```
+
+- [ ] **Step 4: Documentar build/deploy en el runbook** — añadir a `docs/runbook-competencia.md`:
+
+```markdown
+## Build y despliegue en el robot
+1. `dts devel build -H <hostname>` — construye la imagen arm64 con nuestros paquetes (usa el Dockerfile).
+2. Copiar el engine: dejar `model.engine` en `/data/` del robot (ver build_trt_engine.sh).
+3. `dts devel run -H <hostname>` o `roslaunch bringup full_stack.launch veh:=<hostname>`.
+NOTA: si `dts devel build` reporta un base image distinto, ajustar BASE_IMAGE/BASE_TAG y TYPE_VERSION del .dtproject al template-ros de tu version de dts.
+```
+
+- [ ] **Step 5: Verificar** (no se construye la imagen aquí; validar presencia y sintaxis básica)
+
+Run: `test -f Dockerfile && test -f .dtproject && test -f requirements-robot.txt && grep -q "FROM duckietown" Dockerfile && grep -q "Build y despliegue" docs/runbook-competencia.md && echo "deploy OK"`
+Expected: `deploy OK`.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add Dockerfile requirements-robot.txt .dtproject docs/runbook-competencia.md
+git commit -m "feat(deploy): Dockerfile/dtproject para dts devel build + guia de despliegue
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 30: CI (GitHub Actions)
+
+**Files:**
+- Create: `.github/workflows/tests.yml`
+
+**Interfaces:**
+- Produces: workflow que corre la suite (`make test`) en cada push/PR.
+
+- [ ] **Step 1: Escribir el workflow**
+
+```yaml
+# .github/workflows/tests.yml
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependencias
+        run: pip install -r requirements-dev.txt
+      - name: Correr tests
+        run: python -m pytest -q
+```
+
+- [ ] **Step 2: Verificar YAML bien formado**
+
+Run: `python -c "import yaml; yaml.safe_load(open('.github/workflows/tests.yml')); print('YAML OK')"`
+Expected: `YAML OK`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add .github/workflows/tests.yml
+git commit -m "ci: workflow de GitHub Actions que corre la suite de tests
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
