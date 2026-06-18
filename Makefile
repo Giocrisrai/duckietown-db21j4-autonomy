@@ -11,7 +11,7 @@ sim:             ## simulacion de lazo cerrado del planeador
 	python -m pytest simulation/tests -q
 
 dataset-check:   ## valida el dataset (uso: make dataset-check DATA=datasets/duckietown)
-	python -c "from yolo26.dataset_check import check_dataset; print(check_dataset('$(DATA)'))"
+	PYTHONPATH=training python -c "from yolo26.dataset_check import check_dataset; print(check_dataset('$(DATA)'))"
 
 train:           ## entrena YOLO26n (uso: make train DATA=datasets/duckietown.yaml)
 	cd training && python -m yolo26.train --data $(DATA)
