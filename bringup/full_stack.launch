@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Orquestacion completa del stack: seguir linea + deteccion + planificacion -->
+  <arg name="veh" doc="hostname del robot"/>
+  <arg name="use_global_planner" default="false"/>
+  <arg name="use_object_detection" default="true" doc="permite desactivar YOLO como fallback"/>
+
+  <!-- Incluir seguir linea (lane following) -->
+  <include file="$(find bringup)/lane_following.launch">
+    <arg name="veh" value="$(arg veh)"/>
+  </include>
+
+  <!-- Incluir deteccion de objetos -->
+  <include file="$(find object_detection)/launch/object_detection_node.launch" if="$(arg use_object_detection)">
+    <arg name="veh" value="$(arg veh)"/>
+  </include>
+
+  <!-- Incluir planificacion con soporte a planificador global -->
+  <include file="$(find duckietown_planning)/launch/planning.launch">
+    <arg name="veh" value="$(arg veh)"/>
+    <arg name="use_global_planner" value="$(arg use_global_planner)"/>
+  </include>
+</launch>

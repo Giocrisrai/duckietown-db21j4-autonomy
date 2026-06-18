@@ -1,0 +1,20 @@
+# NOTA DE SEGURIDAD (revisada): privileged + network_mode:host es el patron
+# estandar de despliegue de Duckietown EN EL PROPIO ROBOT (Jetson Nano del usuario):
+#   - privileged: acceso al hardware (camara CSI/nvargus, I2C de ToF/IMU/OLED,
+#     GPIO de motores/LEDs/encoders). Restringir devices puntuales arriesga romper
+#     el hardware; se asume el patron oficial de dt-duckiebot-interface.
+#   - network_mode: host: ROS1 necesita multicast entre contenedores en el robot.
+# El "host" es la Nana que el usuario posee fisicamente, no un servidor compartido
+# ni expuesto a internet, por lo que el riesgo de escape->host es local al robot.
+# Endurecimiento futuro (produccion): acotar devices/cap_add, red bridge con ports,
+# montar /data/model.engine:ro y fijar la imagen por digest en vez de :latest.
+services:
+  new-stack:
+    image: duckietown-new-version:latest        # build arm64 con dts devel build
+    network_mode: host                           # requerido por ROS1 multicast (ver nota)
+    privileged: true                             # requerido por acceso a hardware (ver nota)
+    volumes:
+      - /data:/data                              # contiene /data/model.engine
+    environment:
+      - VEHICLE_NAME=${VEHICLE_NAME}
+    command: roslaunch bringup full_stack.launch veh:=${VEHICLE_NAME}

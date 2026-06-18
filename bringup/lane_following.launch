@@ -1,0 +1,9 @@
+<!-- bringup/lane_following.launch -->
+<launch>
+  <arg name="veh" doc="hostname del robot"/>
+  <!-- Incluye el pipeline clasico de dt-core: line_detector + ground_projection
+       + lane_filter + lane_controller. No reescribimos nada; solo orquestamos. -->
+  <include file="$(find duckietown_demos)/launch/lane_following.launch">
+    <arg name="veh" value="$(arg veh)"/>
+  </include>
+</launch>

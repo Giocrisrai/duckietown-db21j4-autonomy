@@ -1,0 +1,13 @@
+<!-- perception/packages/object_detection/launch/object_detection_node.launch -->
+<launch>
+  <arg name="veh" doc="hostname del robot"/>
+  <group ns="$(arg veh)">
+    <node name="object_detection_node" pkg="object_detection"
+          type="object_detection_node.py" output="screen">
+      <param name="engine_path" value="/data/model.engine"/>
+      <param name="imgsz" value="416"/>
+      <param name="conf_thres" value="0.25"/>
+      <remap from="~image/compressed" to="camera_node/image/compressed"/>
+    </node>
+  </group>
+</launch>
