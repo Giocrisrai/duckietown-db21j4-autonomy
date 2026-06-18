@@ -8,6 +8,11 @@ class MapGraph:
 
     Nodos representan intersecciones, aristas representan giros posibles
     entre intersecciones.
+
+    Invariante del formato de mapa: los giros (turn) que salen de un mismo
+    nodo deben ser UNICOS. Si un nodo tuviera dos aristas con el mismo turn,
+    la localizacion y el seguimiento de ruta tomarian la primera coincidencia
+    y podrian divergir del plan.
     """
 
     def __init__(self, nodes, edges):
