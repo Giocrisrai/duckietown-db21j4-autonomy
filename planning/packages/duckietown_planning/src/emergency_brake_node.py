@@ -3,7 +3,7 @@
 import rospy
 from std_msgs.msg import Bool
 from sensor_msgs.msg import Range
-from duckietown_planning.safety import should_brake
+from duckietown_planning.safety import should_brake_range
 
 
 class EmergencyBrakeNode:
@@ -21,9 +21,9 @@ class EmergencyBrakeNode:
         """Callback que procesa mensajes de distancia y publica decisión de freno.
 
         Args:
-            msg: Mensaje Float32 con la distancia en metros.
+            msg: Mensaje sensor_msgs/Range con la distancia en metros.
         """
-        frenar = should_brake(msg.range, self.threshold)
+        frenar = should_brake_range(msg.range, msg.min_range, msg.max_range, self.threshold)
         self.pub.publish(Bool(data=frenar))
 
 
