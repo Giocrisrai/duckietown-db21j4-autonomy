@@ -6,4 +6,5 @@ catkin_package()
 catkin_install_python(PROGRAMS
   src/intersection_navigator_node.py
   src/route_planner_node.py
+  src/emergency_brake_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
