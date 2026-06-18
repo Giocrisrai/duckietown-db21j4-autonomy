@@ -22,5 +22,15 @@
 - Todo lo demás falla → `lane_following.launch` solo (mínimo: dar vueltas al loop).
 - NOTA: el comando de giro (~turn_cmd del navegador) debe conectarse al control de intersecciones de dt-core/dt-car-interface en el robot para que el giro se ejecute físicamente. Verificar este puente en el primer arranque.
 
+## Entorno de entrenamiento (Colab / M1)
+- `make setup` — instala dependencias de desarrollo.
+- `make test` — corre toda la suite (debe quedar verde antes de entrenar).
+- `make sim` — simula el cerebro de planificación sin robot.
+- `make dataset-check DATA=datasets/duckietown` — valida el dataset.
+- Entrenar: `make train DATA=datasets/duckietown.yaml` (M1/MPS) o el notebook `training/notebooks/colab_yolo26.ipynb` (Colab GPU).
+- `make export W=runs/detect/train/weights/best.pt` — exporta a ONNX.
+- `make validate W=... DATA=...` — reporta mAP50 y si pasa el umbral.
+- Llevar el `.onnx` al robot y construir el engine con `tools/build_trt_engine.sh`.
+
 ## Comando de arranque
 roslaunch bringup full_stack.launch veh:=<hostname> use_global_planner:=<true|false> use_object_detection:=<true|false>
