@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Nodo ROS: frena de emergencia si el ToF detecta un obstáculo cercano."""
 import rospy
-from std_msgs.msg import Bool, Float32
+from std_msgs.msg import Bool
+from sensor_msgs.msg import Range
 from duckietown_planning.safety import should_brake
 
 
@@ -13,7 +14,7 @@ class EmergencyBrakeNode:
         rospy.init_node("emergency_brake_node")
         self.threshold = rospy.get_param("~threshold_m", 0.15)
         self.pub = rospy.Publisher("~emergency_stop", Bool, queue_size=1)
-        rospy.Subscriber("~range", Float32, self.cb, queue_size=1)
+        rospy.Subscriber("~range", Range, self.cb, queue_size=1)
         rospy.loginfo("emergency_brake_node listo (umbral=%.2fm)", self.threshold)
 
     def cb(self, msg):
@@ -22,7 +23,7 @@ class EmergencyBrakeNode:
         Args:
             msg: Mensaje Float32 con la distancia en metros.
         """
-        frenar = should_brake(msg.data, self.threshold)
+        frenar = should_brake(msg.range, self.threshold)
         self.pub.publish(Bool(data=frenar))
 
 

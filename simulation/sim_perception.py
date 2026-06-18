@@ -5,7 +5,6 @@ misma clase de inferencia del proyecto (ONNXDetector), validando toda la ruta
 letterbox -> ONNX Runtime -> postproceso en la Mac.
 """
 import numpy as np
-from object_detection.onnx_inference import ONNXDetector
 
 
 def make_dummy_onnx(path, dets):
@@ -39,5 +38,6 @@ def make_dummy_onnx(path, dets):
 
 def run_perception_sim(model_path, img):
     """Corre ONNXDetector (onnxruntime real) sobre `img`. Devuelve detecciones (N,6)."""
+    from object_detection.onnx_inference import ONNXDetector
     det = ONNXDetector(model_path)
     return det.infer(img)
