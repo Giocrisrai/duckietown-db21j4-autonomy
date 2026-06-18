@@ -1754,3 +1754,489 @@ Conforme indicó el usuario, el stack es modular para ir incorporando más de Du
 - **Encoders + IMU** → mejor localización para el planeador global.
 - **Duckiematrix** → más pruebas en simulador antes del robot.
 - Cada uno entra como nodo/módulo nuevo + sus tests, sin tocar lo existente.
+
+---
+
+## FASE P6 — Entorno de entrenamiento completo + simulación y validación local
+
+> Objetivo: tener TODO el entorno de entrenamiento listo, moderno y reproducible (Colab + M1), con **simulación y validación local sin robot**: una ruta de inferencia ONNX que simula la percepción en CPU, validación del dataset, y una simulación de lazo cerrado del cerebro de planificación.
+
+### Task 21: Ruta de inferencia ONNX (simulación de percepción en CPU)
+
+**Files:**
+- Create: `perception/packages/object_detection/src/object_detection/onnx_inference.py`
+- Test: `perception/tests/test_onnx_inference.py`
+
+**Interfaces:**
+- Consumes: `letterbox` (Task 8), `scale_boxes`/`filter_detections` (Task 9).
+- Produces: `class ONNXDetector(model_path, imgsz=416, conf_thres=0.25, session=None)` con `infer(img_bgr) -> np.ndarray (N,6)`. Espejo de `TRTDetector` pero con ONNX Runtime (CPU/Mac/Colab) — permite simular y validar la detección sin TensorRT. `session` es inyectable para tests.
+
+- [ ] **Step 1: Escribir el test que falla**
+
+```python
+# perception/tests/test_onnx_inference.py
+import numpy as np
+from object_detection.onnx_inference import ONNXDetector
+
+class _FakeSession:
+    """Sesion ONNX falsa: devuelve una deteccion fija en espacio letterbox 416."""
+    def __init__(self, salida):
+        self._salida = salida
+    def get_inputs(self):
+        class _I: name = "images"
+        return [_I()]
+    def run(self, _outs, _feeds):
+        return [self._salida]
+
+def test_infer_encadena_y_escala():
+    # una deteccion (x1,y1,x2,y2,score,cls) en espacio 416 y una bajo umbral
+    salida = np.array([[[100., 100., 200., 200., 0.9, 0.],
+                        [10., 10., 20., 20., 0.1, 1.]]], dtype=np.float32)
+    det = ONNXDetector("dummy.onnx", session=_FakeSession(salida))
+    img = np.zeros((416, 416, 3), dtype=np.uint8)   # cuadrada: r=1, sin padding
+    out = det.infer(img)
+    assert out.shape == (1, 6)          # la de score 0.1 se filtra
+    assert out[0, 5] == 0.0             # clase duckie
+    assert abs(out[0, 0] - 100.0) < 1e-6  # r=1, pad=0 -> coords iguales
+```
+
+- [ ] **Step 2: Correr y verificar que falla**
+
+Run: `pip install numpy opencv-python-headless && python -m pytest perception/tests/test_onnx_inference.py -v`
+Expected: FAIL (módulo inexistente).
+
+- [ ] **Step 3: Implementar `onnx_inference.py`**
+
+```python
+# perception/packages/object_detection/src/object_detection/onnx_inference.py
+"""Inferencia con ONNX Runtime: espejo de TRTDetector para CPU/Mac/Colab.
+
+Permite SIMULAR y VALIDAR el pipeline de deteccion completo
+(letterbox -> modelo -> postproceso) SIN TensorRT ni robot. Reutiliza los
+modulos ya testeados. La sesion es inyectable para pruebas (session=...).
+"""
+import numpy as np
+from .letterbox import letterbox
+from .postprocess import scale_boxes, filter_detections
+
+class ONNXDetector:
+    def __init__(self, model_path, imgsz=416, conf_thres=0.25, session=None):
+        self.imgsz = imgsz
+        self.conf_thres = conf_thres
+        if session is not None:
+            self.session = session                       # inyectable en tests
+        else:
+            import onnxruntime as ort
+            self.session = ort.InferenceSession(
+                model_path, providers=["CPUExecutionProvider"])
+        self._input_name = self.session.get_inputs()[0].name
+
+    def _preprocess(self, img_bgr):
+        img, r, (left, top) = letterbox(img_bgr, self.imgsz)
+        blob = img[:, :, ::-1].transpose(2, 0, 1)        # BGR->RGB, HWC->CHW
+        blob = np.ascontiguousarray(blob, dtype=np.float32) / 255.0
+        return blob[None], r, (left, top)
+
+    def infer(self, img_bgr):
+        """Devuelve detecciones (N,6)=[x1,y1,x2,y2,score,cls] en coords de img_bgr."""
+        blob, r, pad = self._preprocess(img_bgr)
+        outputs = self.session.run(None, {self._input_name: blob})
+        raw = filter_detections(np.asarray(outputs[0]).reshape(-1, 6), self.conf_thres)
+        if raw.size == 0:
+            return raw
+        boxes = scale_boxes(raw[:, :4], r, pad, img_bgr.shape[:2])
+        return np.concatenate([boxes, raw[:, 4:6]], axis=1)
+```
+
+- [ ] **Step 4: Correr y verificar que pasa**
+
+Run: `python -m pytest perception/tests/test_onnx_inference.py -v`
+Expected: PASS (1 passed).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add perception/packages/object_detection/src/object_detection/onnx_inference.py perception/tests/test_onnx_inference.py
+git commit -m "feat(perception): ruta de inferencia ONNX para simular deteccion en CPU
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 22: Validador de dataset YOLO
+
+**Files:**
+- Create: `training/yolo26/dataset_check.py`
+- Test: `training/tests/test_dataset_check.py`
+
+**Interfaces:**
+- Produces: `check_dataset(root, num_classes=4) -> dict` (conteo por split) y `class DatasetError(Exception)`. Valida layout `images/{train,val}` + `labels/{train,val}` y que cada etiqueta tenga 5 campos con class id en `[0, num_classes)`.
+
+- [ ] **Step 1: Escribir el test que falla**
+
+```python
+# training/tests/test_dataset_check.py
+import pytest
+from yolo26.dataset_check import check_dataset, DatasetError
+
+def _crear_dataset(root, etiqueta="0 0.5 0.5 0.2 0.2"):
+    for split in ("train", "val"):
+        (root / "images" / split).mkdir(parents=True)
+        (root / "labels" / split).mkdir(parents=True)
+        (root / "labels" / split / "img1.txt").write_text(etiqueta + "\n")
+
+def test_dataset_valido(tmp_path):
+    _crear_dataset(tmp_path)
+    counts = check_dataset(tmp_path)
+    assert counts == {"train": 1, "val": 1}
+
+def test_falta_directorio(tmp_path):
+    (tmp_path / "images" / "train").mkdir(parents=True)
+    with pytest.raises(DatasetError):
+        check_dataset(tmp_path)
+
+def test_class_id_fuera_de_rango(tmp_path):
+    _crear_dataset(tmp_path, etiqueta="9 0.5 0.5 0.2 0.2")
+    with pytest.raises(DatasetError):
+        check_dataset(tmp_path)
+
+def test_linea_malformada(tmp_path):
+    _crear_dataset(tmp_path, etiqueta="0 0.5 0.5")
+    with pytest.raises(DatasetError):
+        check_dataset(tmp_path)
+```
+
+- [ ] **Step 2: Correr y verificar que falla**
+
+Run: `python -m pytest training/tests/test_dataset_check.py -v`
+Expected: FAIL (módulo inexistente).
+
+- [ ] **Step 3: Implementar `dataset_check.py`**
+
+```python
+# training/yolo26/dataset_check.py
+"""Valida la estructura de un dataset YOLO de Duckietown antes de entrenar."""
+from pathlib import Path
+
+class DatasetError(Exception):
+    """Error de estructura o contenido del dataset."""
+
+def check_dataset(root, num_classes: int = 4) -> dict:
+    """Valida layout images/labels (train y val) y rango de class ids.
+
+    Devuelve {"train": n, "val": m}. Lanza DatasetError ante cualquier problema.
+    """
+    root = Path(root)
+    counts = {}
+    for split in ("train", "val"):
+        img_dir = root / "images" / split
+        lbl_dir = root / "labels" / split
+        if not img_dir.is_dir():
+            raise DatasetError(f"falta directorio {img_dir}")
+        if not lbl_dir.is_dir():
+            raise DatasetError(f"falta directorio {lbl_dir}")
+        labels = sorted(lbl_dir.glob("*.txt"))
+        for lbl in labels:
+            for i, line in enumerate(lbl.read_text().splitlines(), 1):
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split()
+                if len(parts) != 5:
+                    raise DatasetError(f"{lbl}:{i} debe tener 5 campos (cls cx cy w h)")
+                cls = int(float(parts[0]))
+                if not (0 <= cls < num_classes):
+                    raise DatasetError(
+                        f"{lbl}:{i} class id {cls} fuera de [0,{num_classes})")
+        counts[split] = len(labels)
+    return counts
+```
+
+- [ ] **Step 4: Correr y verificar que pasa**
+
+Run: `python -m pytest training/tests/test_dataset_check.py -v`
+Expected: PASS (4 passed).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add training/yolo26/dataset_check.py training/tests/test_dataset_check.py
+git commit -m "feat(training): validador de estructura del dataset YOLO
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 23: Simulación de lazo cerrado del cerebro de planificación
+
+**Files:**
+- Create: `simulation/sim_planning.py`
+- Test: `simulation/tests/test_sim_planning.py`
+- Modify: `pyproject.toml` (añadir `simulation` a pythonpath y `simulation/tests` a testpaths)
+
+**Interfaces:**
+- Consumes: `map_graph`, `route_search`, `localization`, `intersection_policy` (Tasks 13-17).
+- Produces: `simulate_route(graph, start, goal, max_steps=100) -> (nodo_final, lista_giros)`. Simula sin ROS el lazo planeador+navegador y valida que se recorre la ruta hasta el destino.
+
+- [ ] **Step 1: Añadir paths en `pyproject.toml`**
+
+En `[tool.pytest.ini_options]`, `pythonpath` debe quedar:
+```toml
+pythonpath = [
+  "training",
+  "perception/packages/object_detection/src",
+  "planning/packages/duckietown_planning/src",
+  "simulation",
+]
+testpaths = ["training/tests", "perception/tests", "planning/tests", "simulation/tests"]
+```
+
+- [ ] **Step 2: Escribir el test que falla**
+
+```python
+# simulation/tests/test_sim_planning.py
+from duckietown_planning.map_graph import MapGraph
+from sim_planning import simulate_route
+
+def _grafo():
+    return MapGraph(
+        ["A", "B", "C", "D"],
+        [{"from": "A", "to": "B", "turn": "straight"},
+         {"from": "B", "to": "C", "turn": "right"},
+         {"from": "C", "to": "D", "turn": "right"},
+         {"from": "A", "to": "C", "turn": "right"}],
+    )
+
+def test_simulacion_llega_al_destino():
+    final, giros = simulate_route(_grafo(), "A", "D")
+    assert final == "D"
+    assert giros == ["right", "right"]   # A->C->D, ruta mas corta
+
+def test_simulacion_mismo_nodo():
+    final, giros = simulate_route(_grafo(), "A", "A")
+    assert final == "A"
+    assert giros == []
+```
+
+- [ ] **Step 3: Correr y verificar que falla**
+
+Run: `python -m pytest simulation/tests/test_sim_planning.py -v`
+Expected: FAIL (módulo inexistente).
+
+- [ ] **Step 4: Implementar `sim_planning.py`**
+
+```python
+# simulation/sim_planning.py
+"""Simulacion de lazo cerrado del cerebro de planificacion (sin ROS).
+
+Recorre intersecciones: en cada una el planeador global sugiere un giro y el
+navegador reactivo lo elige (o decide solo si no hay plan). Valida la autonomia
+de planificacion sin robot ni simulador pesado.
+"""
+from duckietown_planning.route_search import plan_route
+from duckietown_planning.localization import IntersectionLocalizer
+from duckietown_planning.intersection_policy import choose_turn
+
+def simulate_route(graph, start, goal, max_steps: int = 100):
+    """Simula el lazo planeador+navegador. Devuelve (nodo_final, giros_ejecutados)."""
+    route = plan_route(graph, start, goal)
+    if route is None:
+        return start, []                       # sin ruta posible
+    loc = IntersectionLocalizer(graph, start)
+    ejecutados = []
+    for _ in range(max_steps):
+        if loc.current == goal:
+            break
+        disponibles = graph.turns_from(loc.current)
+        if not disponibles:
+            break                              # sin salida (callejon)
+        planeado = route[0] if route else None
+        giro = choose_turn(disponibles, planned=planeado)
+        ejecutados.append(giro)
+        if route and giro == route[0]:
+            route.pop(0)
+        loc.update(giro)
+    return loc.current, ejecutados
+```
+
+- [ ] **Step 5: Correr y verificar que pasa**
+
+Run: `python -m pytest simulation/tests/test_sim_planning.py -v`
+Expected: PASS (2 passed).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add pyproject.toml simulation/sim_planning.py simulation/tests/test_sim_planning.py
+git commit -m "feat(sim): simulacion de lazo cerrado del cerebro de planificacion
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 24: Validación del modelo (métricas mAP + umbral)
+
+**Files:**
+- Create: `training/yolo26/validate.py`
+- Test: `training/tests/test_validate.py`
+
+**Interfaces:**
+- Produces: `passes_threshold(map50, min_map50=0.70) -> bool` (testeable) y `validate(weights, data, imgsz=416) -> float` (envuelve Ultralytics val, no se testea su I/O).
+
+- [ ] **Step 1: Escribir el test que falla**
+
+```python
+# training/tests/test_validate.py
+from yolo26.validate import passes_threshold, MIN_MAP50
+
+def test_umbral_por_defecto():
+    assert MIN_MAP50 == 0.70
+
+def test_pasa_umbral():
+    assert passes_threshold(0.85) is True
+
+def test_no_pasa_umbral():
+    assert passes_threshold(0.5) is False
+
+def test_umbral_personalizado():
+    assert passes_threshold(0.6, min_map50=0.55) is True
+```
+
+- [ ] **Step 2: Correr y verificar que falla**
+
+Run: `python -m pytest training/tests/test_validate.py -v`
+Expected: FAIL (módulo inexistente).
+
+- [ ] **Step 3: Implementar `validate.py`**
+
+```python
+# training/yolo26/validate.py
+"""Validacion del modelo YOLO26 entrenado: metricas (mAP) + chequeo de umbral."""
+
+MIN_MAP50 = 0.70   # umbral razonable para competencia
+
+def passes_threshold(map50, min_map50: float = MIN_MAP50) -> bool:
+    """True si el mAP50 alcanza el umbral minimo."""
+    return float(map50) >= float(min_map50)
+
+def validate(weights: str, data: str, imgsz: int = 416) -> float:
+    """Corre Ultralytics val y devuelve el mAP50. Requiere ultralytics (Colab/M1)."""
+    from ultralytics import YOLO
+    metrics = YOLO(weights).val(data=data, imgsz=imgsz)
+    return float(metrics.box.map50)
+```
+
+- [ ] **Step 4: Correr y verificar que pasa**
+
+Run: `python -m pytest training/tests/test_validate.py -v`
+Expected: PASS (4 passed).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add training/yolo26/validate.py training/tests/test_validate.py
+git commit -m "feat(training): validacion de modelo con umbral de mAP50
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 25: Entorno reproducible (Makefile + requirements-dev + notebook Colab)
+
+**Files:**
+- Create: `requirements-dev.txt`
+- Create: `Makefile`
+- Create: `training/notebooks/colab_yolo26.ipynb`
+- Modify: `docs/runbook-competencia.md` (sección "Entorno de entrenamiento")
+
+**Interfaces:**
+- Produces: comandos reproducibles `make setup|test|sim|dataset-check|train|export|validate` y un notebook Colab válido para entrenar en GPU.
+
+- [ ] **Step 1: Escribir `requirements-dev.txt`**
+
+```text
+pytest>=8.0
+numpy>=1.24
+pyyaml>=6.0
+opencv-python-headless>=4.8
+onnxruntime>=1.17
+```
+
+- [ ] **Step 2: Escribir `Makefile`** (USAR TABS para la indentación de las recetas)
+
+```makefile
+# Makefile — flujos del stack modernizado DB21-J4
+.PHONY: setup test sim dataset-check train export validate
+
+setup:           ## instala dependencias de desarrollo (Mac/Colab)
+	pip install -r requirements-dev.txt
+
+test:            ## corre toda la suite de tests
+	python -m pytest -q
+
+sim:             ## simulacion de lazo cerrado del planeador
+	python -m pytest simulation/tests -q
+
+dataset-check:   ## valida el dataset (uso: make dataset-check DATA=datasets/duckietown)
+	python -c "from yolo26.dataset_check import check_dataset; print(check_dataset('$(DATA)'))"
+
+train:           ## entrena YOLO26n (uso: make train DATA=datasets/duckietown.yaml)
+	cd training && python -m yolo26.train --data $(DATA)
+
+export:          ## exporta a ONNX (uso: make export W=runs/detect/train/weights/best.pt)
+	cd training && python -c "from yolo26.export_onnx import export; print(export('$(W)'))"
+
+validate:        ## valida el modelo (uso: make validate W=best.pt DATA=duckietown.yaml)
+	cd training && python -c "from yolo26.validate import validate, passes_threshold; m=validate('$(W)','$(DATA)'); print('mAP50=', m, 'OK' if passes_threshold(m) else 'BAJO')"
+```
+
+- [ ] **Step 3: Escribir el notebook Colab** `training/notebooks/colab_yolo26.ipynb`
+
+```json
+{
+ "cells": [
+  {"cell_type": "markdown", "metadata": {}, "source": ["# Entrenamiento YOLO26n para Duckietown (Colab GPU)\n", "Entrena, valida y exporta a ONNX para TensorRT en la Jetson Nano."]},
+  {"cell_type": "code", "execution_count": null, "metadata": {}, "outputs": [], "source": ["!pip install ultralytics>=8.4.0 onnx onnxslim\n"]},
+  {"cell_type": "code", "execution_count": null, "metadata": {}, "outputs": [], "source": ["# Coloca el dataset en datasets/duckietown/{images,labels}/{train,val}\n", "from ultralytics import YOLO\n", "model = YOLO('yolo26n.pt')\n", "model.train(data='datasets/duckietown.yaml', epochs=100, imgsz=416, device=0)\n"]},
+  {"cell_type": "code", "execution_count": null, "metadata": {}, "outputs": [], "source": ["# Exportar a ONNX (opset 12 para TensorRT 8.2)\n", "YOLO('runs/detect/train/weights/best.pt').export(format='onnx', imgsz=416, opset=12, simplify=True)\n"]}
+ ],
+ "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"}, "language_info": {"name": "python"}},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
+```
+
+- [ ] **Step 4: Documentar en el runbook** — añadir a `docs/runbook-competencia.md` una sección:
+
+```markdown
+## Entorno de entrenamiento (Colab / M1)
+- `make setup` — instala dependencias de desarrollo.
+- `make test` — corre toda la suite (debe quedar verde antes de entrenar).
+- `make sim` — simula el cerebro de planificación sin robot.
+- `make dataset-check DATA=datasets/duckietown` — valida el dataset.
+- Entrenar: `make train DATA=datasets/duckietown.yaml` (M1/MPS) o el notebook `training/notebooks/colab_yolo26.ipynb` (Colab GPU).
+- `make export W=runs/detect/train/weights/best.pt` — exporta a ONNX.
+- `make validate W=... DATA=...` — reporta mAP50 y si pasa el umbral.
+- Llevar el `.onnx` al robot y construir el engine con `tools/build_trt_engine.sh`.
+```
+
+- [ ] **Step 5: Verificar**
+
+Run:
+```bash
+make -n test sim && python -c "import json; json.load(open('training/notebooks/colab_yolo26.ipynb')); print('NB OK')" && grep -q "Entorno de entrenamiento" docs/runbook-competencia.md && echo "runbook OK"
+```
+Expected: imprime los comandos en seco, `NB OK` y `runbook OK`.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add requirements-dev.txt Makefile training/notebooks/colab_yolo26.ipynb docs/runbook-competencia.md
+git commit -m "feat(env): entorno reproducible (Makefile, requirements-dev, notebook Colab)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
