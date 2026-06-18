@@ -32,5 +32,11 @@
 - `make validate W=... DATA=...` — reporta mAP50 y si pasa el umbral.
 - Llevar el `.onnx` al robot y construir el engine con `tools/build_trt_engine.sh`.
 
+## Build y despliegue en el robot
+1. `dts devel build -H <hostname>` — construye la imagen arm64 con nuestros paquetes (usa el Dockerfile).
+2. Copiar el engine: dejar `model.engine` en `/data/` del robot (ver build_trt_engine.sh).
+3. `dts devel run -H <hostname>` o `roslaunch bringup full_stack.launch veh:=<hostname>`.
+NOTA: si `dts devel build` reporta un base image distinto, ajustar BASE_IMAGE/BASE_TAG y TYPE_VERSION del .dtproject al template-ros de tu version de dts.
+
 ## Comando de arranque
 roslaunch bringup full_stack.launch veh:=<hostname> use_global_planner:=<true|false> use_object_detection:=<true|false>

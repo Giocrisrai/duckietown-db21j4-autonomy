@@ -2,6 +2,7 @@
 <launch>
   <arg name="veh" doc="hostname del robot"/>
   <arg name="use_global_planner" default="false"/>
+  <arg name="use_emergency_brake" default="true"/>
   <arg name="map_path" default="" doc="ruta al mapa YAML (solo planeador global)"/>
   <arg name="start" default="" doc="nodo inicial (solo planeador global)"/>
   <arg name="goal" default="" doc="nodo destino (solo planeador global)"/>
@@ -11,6 +12,11 @@
           type="intersection_navigator_node.py" output="screen">
       <remap from="~at_stop_line" to="stop_line_filter_node/at_stop_line"/>
       <remap from="~planned_turn" to="route_planner_node/planned_turn"/>
+    </node>
+    <node if="$(arg use_emergency_brake)" name="emergency_brake_node" pkg="duckietown_planning"
+          type="emergency_brake_node.py" output="screen">
+      <param name="threshold_m" value="0.15"/>
+      <remap from="~range" to="front_center_tof_driver_node/range"/>
     </node>
     <!-- Planeador global: aditivo, solo si use_global_planner:=true. -->
     <node if="$(arg use_global_planner)" name="route_planner_node" pkg="duckietown_planning"
