@@ -12,5 +12,6 @@ pythonpath = [
   "control",
   "diagnostics",
   "rl",
+  "platform_support",
 ]
-testpaths = ["training/tests", "perception/tests", "planning/tests", "simulation/tests", "control/tests", "diagnostics/tests", "rl/tests"]
+testpaths = ["training/tests", "perception/tests", "planning/tests", "simulation/tests", "control/tests", "diagnostics/tests", "rl/tests", "platform_support/tests"]

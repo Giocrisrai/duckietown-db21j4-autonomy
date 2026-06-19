@@ -67,3 +67,10 @@ def test_auto_pipeline_adapta_solo():
 def test_auto_pipeline_sin_camara_lanza():
     with _pytest.raises(RuntimeError):
         auto_pipeline(dmesg="", devices=[])
+
+
+def test_pipeline_raspberry_libcamera():
+    from object_detection.camera_support import gst_pipeline, supported_cameras
+    assert "raspberry" in supported_cameras()
+    p = gst_pipeline("raspberry")
+    assert "libcamerasrc" in p and "appsink" in p

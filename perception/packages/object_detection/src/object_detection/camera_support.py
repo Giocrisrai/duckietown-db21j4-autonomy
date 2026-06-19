@@ -22,6 +22,10 @@ CAMERAS = {
         "tipo": "csi", "width": 1920, "height": 1080, "fps": 30, "flip": 0,
         "nota": "Sony IMX477 (HQ Camera)",
     },
+    "raspberry": {
+        "tipo": "libcamera", "width": 1280, "height": 720, "fps": 30,
+        "nota": "Raspberry Pi Camera (libcamera) - placa alternativa",
+    },
     "usb": {
         "tipo": "v4l2", "width": 640, "height": 480, "fps": 30,
         "nota": "Camara USB/UVC generica (fallback universal)",
@@ -52,6 +56,11 @@ def gst_pipeline(sensor, width=None, height=None, fps=None, sensor_id=0, device=
             f"nvarguscamerasrc sensor-id={sensor_id} ! "
             f"video/x-raw(memory:NVMM),width={w},height={h},framerate={f}/1 ! "
             f"nvvidconv flip-method={info.get('flip', 0)} ! video/x-raw,format=BGRx ! "
+            f"videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1"
+        )
+    if info["tipo"] == "libcamera":               # Raspberry Pi Camera
+        return (
+            f"libcamerasrc ! video/x-raw,width={w},height={h},framerate={f}/1 ! "
             f"videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1"
         )
     return (
