@@ -19,10 +19,12 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Instalar dependencias (uv)
-        run: uv pip install --system -r requirements-dev.txt
+      - name: Crear venv e instalar dependencias (uv)
+        run: |
+          uv venv
+          uv pip install -r requirements-dev.txt
       - name: Correr tests
-        run: python -m pytest -q
+        run: uv run pytest -q
 
   docker-dev:
     name: dev container (Docker + uv)
