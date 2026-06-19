@@ -68,3 +68,29 @@ completa modelo entrenado → ONNX → detector del proyecto.
 
 > Los pesos (`*.pt`), el ONNX (`*.onnx`) y `datasets/` están en `.gitignore` (binarios/datos
 > no se versionan). Se regeneran con los comandos de arriba.
+
+---
+
+## Entrenamiento con DATASET REAL de Duckietown (competencia)
+
+Se descargó el **dataset oficial** (público, S3, 671 MB) y se convirtió a YOLO con
+`tools/convert_dtod_to_yolo.py`. Clases reales: **duckie, cone, duckiebot** (1956 frames
+640×480). Mapeo a ranuras del proyecto: `duckie→0, cone→1, duckiebot→2 (truck), bus(3) sin datos`.
+
+- Dataset: **1663 train + 293 val**.
+- Entrenamiento real en M1 (MPS): YOLO26n, 25 épocas, imgsz 416, ~1 min/época.
+
+### mAP (modelo real, validación)
+
+| Clase | P | R | **mAP50** | mAP50-95 |
+|---|---|---|---|---|
+| **todas** | 0.836 | 0.837 | **0.871** | 0.604 |
+| duckie | 0.731 | 0.739 | 0.762 | 0.458 |
+| truck (=duckiebot) | 0.940 | 0.934 | 0.979 | 0.750 |
+
+`validate.py` → **mAP50 = 0.8707**, pasa umbral 0.70. Inferencia 9.5 ms/img en M1.
+Detección real confirmada con `ONNXDetector` sobre frames reales (multi-objeto correcto).
+
+> **Limitaciones honestas del split actual:** `cone` (clase rara, 372 ej.) quedó sin instancias
+> en val con el split secuencial; `bus` no tiene datos reales (solo simulador). Mejora pendiente:
+> split **estratificado** por clase y/o mezclar datos sintéticos de truck/bus del simulador.
