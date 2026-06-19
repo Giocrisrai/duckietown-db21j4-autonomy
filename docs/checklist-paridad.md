@@ -47,6 +47,13 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
 | Validación E2E de hardware (preflight `validate_hardware.sh`) | ⭐ plus |
 | Soporte de cualquier modelo de cámara (autodetección, no limitante) | ⭐ plus |
 
+## Arquitectura HUT del DB21-J4 (hallazgo en hardware real)
+- **Motores, encoders y LEDs** van por un **microcontrolador serial** (Atmel/Microchip
+  `04d8:ecb7`, `/dev/ttyACM0`), **NO por I2C**. Lo maneja `dt-duckiebot-interface`.
+  Detección: `tools/check_hut.sh` + `diagnostics/hut.py` (`find_hut_serial`).
+- **IMU/ToF/OLED**: en I2C (bus 1) cuando la HUT alimenta ese rail; `tools/test_sensors.py`.
+- **Cámara**: CSI (nvargus, autodetección IMX219/OV5647/Pi-M12) o USB fallback.
+
 ## Gaps conocidos (pendientes honestos)
 | Funcionalidad oficial | Estado | Plan |
 |---|---|---|
