@@ -1,7 +1,23 @@
-# Soporte multi-camara y recalibracion (IMX219, IMX219-B, IMX477, USB)
+# Soporte de distintos modelos de camara + recalibracion (el modelo NO es limitante)
 
-El stack soporta **varios sensores** y trae alternativas para que siempre haya una
-camara funcionando. Registro y pipelines en `object_detection/camera_support.py`.
+El stack se **adapta automaticamente** a la camara conectada: detecta el modelo y
+elige el pipeline correcto, con fallback USB. Asi el dispositivo no queda atado a
+una sola camara. Registro y pipelines en `object_detection/camera_support.py`.
+
+## Autodeteccion (el modelo no limita)
+```python
+from object_detection.camera_support import auto_pipeline
+modelo, pipeline = auto_pipeline(dmesg=open("/dev/kmsg").read())  # o pasa dmesg/devices
+# el resto del stack usa `pipeline` sin saber que modelo es; se adapta solo.
+```
+- Detecta IMX219/IMX219-B (ambas como `imx219`) e IMX477 desde `dmesg`.
+- Si no hay sensor CSI pero hay `/dev/video*`, usa **USB/UVC**.
+- Si no hay ninguna, lanza un error claro (revisar overlay o conectar USB).
+
+## Agregar un modelo nuevo (extensible)
+Anade una entrada al dict `CAMERAS` en `camera_support.py` (tipo csi/v4l2,
+resolucion, fps) y, si es CSI, su nombre de sensor a `_CSI_SENSORS`. Nada mas:
+pipeline, autodeteccion e intrinsecos por defecto quedan disponibles.
 
 ## Camaras soportadas
 | id | tipo | resolucion def. | nota |

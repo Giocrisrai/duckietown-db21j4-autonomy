@@ -60,6 +60,39 @@ def gst_pipeline(sensor, width=None, height=None, fps=None, sensor_id=0, device=
     )
 
 
+# Orden de preferencia de sensores CSI conocidos (imx219 cubre tambien imx219-b).
+_CSI_SENSORS = ["imx477", "imx219"]
+
+
+def detect_camera(dmesg="", devices=()):
+    """Detecta AUTOMATICAMENTE el modelo de camara conectado.
+
+    Asi el modelo no es una limitante: el dispositivo se adapta a la camara que
+    tenga. `dmesg`: salida de `dmesg` (str, para sensores CSI). `devices`: lista
+    de /dev/video* presentes (para USB/UVC). Devuelve el id de modelo soportado,
+    o None si no se detecta ninguna camara.
+    """
+    text = (dmesg or "").lower()
+    for sensor in _CSI_SENSORS:
+        if sensor in text:                 # imx219-b aparece como 'imx219'
+            return sensor
+    if devices:                            # hay /dev/video* -> USB/UVC
+        return "usb"
+    return None
+
+
+def auto_pipeline(dmesg="", devices=(), **kwargs):
+    """Detecta la camara y devuelve (modelo, pipeline_gstreamer) listo para usar.
+
+    Lanza RuntimeError si no hay camara. El resto del stack no necesita saber
+    que modelo es: se adapta solo.
+    """
+    model = detect_camera(dmesg, devices)
+    if model is None:
+        raise RuntimeError("no se detecto ninguna camara (revisa overlay CSI o conecta USB)")
+    return model, gst_pipeline(model, **kwargs)
+
+
 def default_intrinsics(sensor, width=None, height=None):
     """Intrinsecos INICIALES para recalibrar (focal ~= ancho, centro en el medio).
 
