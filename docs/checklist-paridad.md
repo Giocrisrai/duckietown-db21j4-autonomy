@@ -43,6 +43,9 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
 | CI matriz (Ubuntu+macOS, py3.11/3.12) + Docker | ⭐ plus |
 | Transfer learning validado (+0.273 mAP) | ⭐ plus |
 | Diagnóstico de fallas HW + red | ⭐ plus |
+| Monitoreo de salud EN VIVO por red (HTTP JSON, debounce, OK/DEGRADED/FAULT) | ⭐ plus |
+| Validación E2E de hardware (preflight `validate_hardware.sh`) | ⭐ plus |
+| Soporte de cualquier modelo de cámara (autodetección, no limitante) | ⭐ plus |
 
 ## Gaps conocidos (pendientes honestos)
 | Funcionalidad oficial | Estado | Plan |
