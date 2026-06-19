@@ -15,13 +15,22 @@ def main(bus=1):
     try:
         from smbus2 import SMBus
     except ImportError:
-        from smbus import SMBus
+        try:
+            from smbus import SMBus
+        except ImportError:
+            print("  Falta la libreria I2C. Instala en el robot:")
+            print("    sudo apt-get install -y python3-smbus   (o: pip3 install smbus2)")
+            return 0
     encontrados = 0
     print(f"== Probando sensores en I2C bus {bus} ==")
-    with SMBus(bus) as b:
+    b = SMBus(bus)                       # try/finally: compatible con smbus y smbus2
+    try:
         for addr in sorted(HUT_DEVICES):
             try:
-                b.read_byte(addr)
+                # smbus viejo retorna negativo (-121 EREMOTEIO) en error en vez
+                # de lanzar; smbus2 lanza. Tratamos ambos como "ausente".
+                if b.read_byte(addr) < 0:
+                    continue
             except Exception:
                 continue
             encontrados += 1
@@ -30,11 +39,18 @@ def main(bus=1):
             if reg is not None:
                 try:
                     val = b.read_byte_data(addr, reg)
+                    if val < 0:
+                        raise IOError("lectura I2C invalida")
                     ok = whoami_ok(addr, val)
-                    estado = f"WHO_AM_I=0x{val:02x} -> {'OK' if ok else 'MISMATCH'}"
+                    estado = f"WHO_AM_I=0x{val & 0xff:02x} -> {'OK' if ok else 'MISMATCH'}"
                 except Exception as e:
                     estado = f"presente (whoami no leido: {e})"
             print(f"  0x{addr:02x} {identify(addr)}: {estado}")
+    finally:
+        try:
+            b.close()
+        except Exception:
+            pass
     if not encontrados:
         print("  Ningun sensor del HUT detectado. ¿HUT conectada y ALIMENTADA?")
     return encontrados
