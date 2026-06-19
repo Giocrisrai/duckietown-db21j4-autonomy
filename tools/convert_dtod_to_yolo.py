@@ -43,12 +43,18 @@ def main():
     p.add_argument("--src", required=True, help="raiz del dataset extraido")
     p.add_argument("--dst", default="datasets/duckietown_real")
     p.add_argument("--val-frac", type=float, default=0.15)
+    p.add_argument("--seed", type=int, default=42, help="semilla del split estratificado")
     args = p.parse_args()
 
     src = Path(args.src)
     dst = Path(args.dst)
     anns = json.loads((src / "annotation" / "final_anns.json").read_text())
-    frames = sorted(anns.keys())                      # orden determinista
+    # Split ESTRATIFICADO por barajado determinista: distribuye cada clase
+    # (incluida la rara 'cone') de forma proporcional entre train y val, en
+    # vez de un corte secuencial que la dejaba toda en train.
+    import random
+    frames = sorted(anns.keys())
+    random.Random(args.seed).shuffle(frames)
     n_val = int(len(frames) * args.val_frac)
     splits = {"val": frames[:n_val], "train": frames[n_val:]}
 

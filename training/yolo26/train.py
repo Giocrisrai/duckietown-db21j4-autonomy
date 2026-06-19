@@ -21,10 +21,18 @@ def main():
     p.add_argument("--imgsz", type=int, default=IMG_SIZE)
     p.add_argument("--device", default="auto")
     p.add_argument("--model", default="yolo26n.pt")
+    # Rendimiento: cache acelera mucho las epocas (lee del RAM/disco una vez);
+    # patience habilita early-stopping; workers ajusta el dataloader.
+    p.add_argument("--cache", default="ram",
+                   help="cache de imagenes: 'ram' | 'disk' | 'false'")
+    p.add_argument("--workers", type=int, default=8)
+    p.add_argument("--patience", type=int, default=20,
+                   help="early-stopping: epocas sin mejora antes de parar")
     args = p.parse_args()
 
     device = select_device(args.device)
-    print(f"==> Entrenando en device={device}")
+    cache = args.cache if args.cache.lower() != "false" else False
+    print(f"==> Entrenando en device={device} (cache={cache}, workers={args.workers})")
     from ultralytics import YOLO
 
     model = YOLO(args.model)
@@ -34,6 +42,9 @@ def main():
         batch=args.batch,
         imgsz=args.imgsz,
         device=device,
+        cache=cache,
+        workers=args.workers,
+        patience=args.patience,
     )
     print("OK: entrenamiento terminado. Pesos en runs/detect/train/weights/best.pt")
 
