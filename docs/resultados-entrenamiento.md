@@ -94,3 +94,31 @@ Detección real confirmada con `ONNXDetector` sobre frames reales (multi-objeto 
 > **Limitaciones honestas del split actual:** `cone` (clase rara, 372 ej.) quedó sin instancias
 > en val con el split secuencial; `bus` no tiene datos reales (solo simulador). Mejora pendiente:
 > split **estratificado** por clase y/o mezclar datos sintéticos de truck/bus del simulador.
+
+---
+
+## Modelo MEJORADO (split estratificado + 50 épocas + cache)
+
+Con el split estratificado (cone ahora en val), 50 épocas y `cache=ram`:
+
+| Clase | P | R | **mAP50** | mAP50-95 |
+|---|---|---|---|---|
+| **todas** | 0.914 | 0.877 | **0.937** | 0.648 |
+| duckie | 0.888 | 0.840 | 0.935 | 0.621 |
+| **cone** | 0.914 | 0.837 | 0.891 | 0.537 |
+| truck (=duckiebot) | 0.942 | 0.954 | 0.987 | 0.786 |
+
+**Mejora: mAP50 0.871 → 0.937**; `cone` ahora se mide (0.891). Pesos: `runs/detect/train-3/`.
+
+## Transfer learning — VALIDADO empíricamente
+
+Comparación con `tools/compare_transfer.py` (dataset real, 12 épocas cada uno):
+
+| Modelo | mAP50 |
+|---|---|
+| Preentrenado (yolo26n COCO → fine-tuning) | **0.857** |
+| Desde cero (pesos aleatorios) | 0.584 |
+| **Ventaja transfer learning** | **+0.273 (CONFIRMADO)** |
+
+El transfer learning aporta **+27 pts de mAP** con las mismas épocas. Por eso el
+pipeline usa siempre `yolo26n.pt` preentrenado como punto de partida.
