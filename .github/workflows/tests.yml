@@ -15,16 +15,15 @@ jobs:
         python: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
-      - name: Instalar uv (gestor moderno)
-        uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Crear venv e instalar dependencias (uv)
+      - name: Instalar uv + dependencias (uv como instalador rapido)
         run: |
-          uv venv
-          uv pip install -r requirements-dev.txt
+          pip install uv
+          uv pip install --system -r requirements-dev.txt
       - name: Correr tests
-        run: .venv/bin/python -m pytest -q
+        run: python -m pytest -q
 
   docker-dev:
     name: dev container (Docker + uv)
