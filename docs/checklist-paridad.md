@@ -23,7 +23,8 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
 | Detección de objetos (YOLOv5 oficial) | **YOLO26** + TensorRT + sim ONNX (mAP 0.937) | ⭐ |
 | AprilTags / señales | **Tabla oficial + detección real + sim + enlace a planificación** | ⭐ |
 | Odometría / deadreckoning | **Implementada** (`odometry.py`, TDD) | ✅⭐ |
-| Calibración de ruedas (trim/gain) | **Implementada** (`calibration.py`, TDD) | ✅ |
+| Calibración cinemática (gain/trim/baseline/radius) | **Implementada** con carga/guardado/validación YAML formato Duckietown (`calibration.py`, TDD) | ✅⭐ |
+| Calibración de cámara (intrínsecos + undistort fisheye) | **Implementada** (`camera_calibration.py`: validar/cargar + undistort cv2, TDD) | ✅⭐ |
 
 ## Simulación y validación (antes de flashear)
 | Capacidad | Nuestra versión | Estado |
@@ -47,7 +48,7 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
 | Funcionalidad oficial | Estado | Plan |
 |---|---|---|
 | Teleop / joystick | ⚠️ pendiente | Reusar `joy_mapper`/virtual joystick oficial vía launch (no requiere código propio) |
-| Calibración de cámara (intrínseca/extrínseca) | ⚠️ pendiente | Reusar procedimiento oficial `dts`/cámara; documentar en runbook |
+| Procedimiento de captura de calibración de cámara (tablero) | ⚠️ parcial | El manejo (validar/cargar/undistort) está; la captura con tablero se hace en el robot |
 | Despliegue real en robot | ⚠️ pendiente | Requiere hardware: flashear, build TensorRT, conectar `~turn_cmd`→dt-car-interface |
 | Segmentación neuronal de carril | ⚠️ opcional | Por diseño usamos CV clásica (la Nana solo aguanta una red, YOLO26) |
 | gym-duckietown 3D oficial | ⚠️ opcional | Frágil en M1/Py3.13; se usó entorno RL propio |
