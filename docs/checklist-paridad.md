@@ -6,7 +6,7 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
 ## Drivers de hardware
 | Funcionalidad oficial | Nuestra versión | Estado |
 |---|---|---|
-| Cámara CSI (IMX219) | Reusa `camera_node` + **diagnóstico propio** (`check_camera.sh`, `camera_health`) | ♻️⭐ |
+| Cámara CSI (IMX219) | Reusa `camera_node` + **diagnóstico** (`check_camera.sh`, `camera_health`) + **soporte MULTI-CÁMARA** (IMX219/IMX219-B/IMX477/USB, `camera_support.py`, `probe_camera.sh`) | ♻️⭐ |
 | Motores / `wheels_driver` | Reusa `dt-duckiebot-interface` | ♻️ |
 | Encoders de rueda | Reusa drivers + **odometría/deadreckoning propia** + health | ♻️⭐ |
 | IMU (MPU-6050) | Reusa driver + **chequeo de salud** | ♻️⭐ |
