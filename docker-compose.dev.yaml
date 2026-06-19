@@ -1,0 +1,12 @@
+# Entorno de desarrollo/entrenamiento CONTAINERIZADO (host-independiente).
+# Levanta el entorno reproducible en cualquier Linux/macOS con Docker:
+#   docker compose -f docker-compose.dev.yaml up --build      # corre la suite
+#   docker compose -f docker-compose.dev.yaml run dev bash    # shell interactivo
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ".:/work"
+    command: python -m pytest -q

@@ -6,13 +6,27 @@ on:
   pull_request:
 jobs:
   pytest:
-    runs-on: ubuntu-latest
+    name: tests (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
       - name: Instalar dependencias
         run: pip install -r requirements-dev.txt
       - name: Correr tests
         run: python -m pytest -q
+
+  docker-dev:
+    name: dev container (Docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build imagen dev y correr la suite en contenedor
+        run: docker build -f Dockerfile.dev -t dt-newver-dev . && docker run --rm dt-newver-dev
