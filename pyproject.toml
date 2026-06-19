@@ -10,5 +10,6 @@ pythonpath = [
   "planning/packages/duckietown_planning/src",
   "simulation",
   "control",
+  "diagnostics",
 ]
-testpaths = ["training/tests", "perception/tests", "planning/tests", "simulation/tests", "control/tests"]
+testpaths = ["training/tests", "perception/tests", "planning/tests", "simulation/tests", "control/tests", "diagnostics/tests"]
