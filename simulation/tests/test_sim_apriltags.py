@@ -1,4 +1,10 @@
 """Tests de deteccion/simulacion de AprilTags ("senaleticas QR") y enlace con planificacion."""
+import pytest
+
+# Libs nativas opcionales (requirements-apriltag.txt): si no estan, se saltan.
+pytest.importorskip("pupil_apriltags")
+pytest.importorskip("moms_apriltag")
+
 from sim_apriltags import make_tag_image, detect_tag_ids, detect_and_act, decide_with_signs
 
 

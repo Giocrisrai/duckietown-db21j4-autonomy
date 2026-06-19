@@ -7,10 +7,20 @@ y probar nosotros. `dts` queda **opcional**.
 
 ## 1. Entorno de desarrollo (cualquier SO)
 
+Usamos **`uv`** (Astral), el gestor de paquetes moderno (10-100× más rápido que pip).
+`setup_env.sh` lo usa si está disponible, con fallback automático a venv+pip.
+
 ```bash
-tools/setup_env.sh          # detecta SO/arch, crea .venv, instala deps, valida
+tools/setup_env.sh          # detecta SO/arch, crea .venv (uv si hay), instala deps, valida
 tools/validate_stack.sh     # valida TODO: tests + launches + YAML + scripts + compose
 ```
+
+**Dependencias:**
+- `requirements-dev.txt` — núcleo, todo con wheels (numpy, opencv-headless, onnx,
+  onnxruntime, gymnasium, pytest). Construye en cualquier entorno sin compilar ni apt.
+- `requirements-apriltag.txt` — opcional (extensiones nativas para detectar AprilTags);
+  los tests de AprilTag se **saltan** si no está instalado.
+- `requirements-rl.txt` — Deep RL (stable-baselines3). `training/requirements.txt` — YOLO.
 
 O containerizado (host-independiente, no necesita Python local):
 

@@ -1,18 +1,19 @@
 # Dockerfile.dev — entorno de desarrollo/entrenamiento MULTIPLATAFORMA.
 # Reproducible en cualquier Linux/macOS con Docker (host-independiente).
+# Usa uv (Astral) como gestor de paquetes: instalaciones rapidas y deterministas.
+# Sin apt: opencv-python-headless no requiere libs de sistema -> construye en
+# cualquier entorno (incluso con repos de SO restringidos).
 # Build:  docker build -f Dockerfile.dev -t dt-newver-dev .
 # Tests:  docker run --rm -v "$PWD":/work dt-newver-dev
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 WORKDIR /work
 
-# libgl1/libglib2.0-0: requeridos por opencv (cv2) en headless Linux.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        git libgl1 libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+# uv: gestor de paquetes moderno (estado del arte), ~10-100x mas rapido que pip.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 COPY requirements-dev.txt .
-RUN pip install --no-cache-dir -r requirements-dev.txt
+RUN uv pip install --system --no-cache -r requirements-dev.txt
 
 COPY . .
 

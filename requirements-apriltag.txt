@@ -1,0 +1,5 @@
+# Deteccion de AprilTags ("senaleticas QR"). Opcional: extensiones nativas que
+# pueden requerir compilacion en algunos entornos. Necesario para los tests de
+# simulacion de AprilTags (perception/sim) y el nodo apriltag en el robot.
+pupil-apriltags>=1.0
+moms-apriltag>=2.0

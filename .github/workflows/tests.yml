@@ -15,18 +15,19 @@ jobs:
         python: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Instalar uv (gestor moderno)
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Instalar dependencias
-        run: pip install -r requirements-dev.txt
+      - name: Instalar dependencias (uv)
+        run: uv pip install --system -r requirements-dev.txt
       - name: Correr tests
         run: python -m pytest -q
 
   docker-dev:
-    name: dev container (Docker)
+    name: dev container (Docker + uv)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build imagen dev y correr la suite en contenedor
+      - name: Build imagen dev (uv) y correr la suite en contenedor
         run: docker build -f Dockerfile.dev -t dt-newver-dev . && docker run --rm dt-newver-dev
