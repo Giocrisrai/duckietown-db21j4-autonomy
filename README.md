@@ -12,6 +12,12 @@ modernizado donde aporta valor:
 > Diseño completo: [`docs/superpowers/specs/2026-06-16-duckietown-db21j4-modernizado-design.md`](docs/superpowers/specs/2026-06-16-duckietown-db21j4-modernizado-design.md)
 > Plan de implementación: [`docs/superpowers/plans/2026-06-16-duckietown-db21j4-modernizado.md`](docs/superpowers/plans/2026-06-16-duckietown-db21j4-modernizado.md)
 > Runbook de competencia: [`docs/runbook-competencia.md`](docs/runbook-competencia.md)
+>
+> **Guías clave:** [Checklist de paridad](docs/checklist-paridad.md) ·
+> [Multiplataforma/uv/sin dts](docs/multiplataforma.md) ·
+> [Hardware alternativo (Jetson Orin/Raspberry Pi)](docs/hardware-alternativo.md) ·
+> [Flashear desde la Mac](docs/flasheo.md) · [Cámaras (autodetección)](docs/camaras.md) ·
+> [Resultados entrenamiento](docs/resultados-entrenamiento.md) · [Deep RL](docs/resultados-rl.md)
 
 ## Restricción de hardware (importante)
 
