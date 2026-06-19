@@ -1,0 +1,3 @@
+# Dependencias para entrenamiento Deep RL (no requeridas por la suite de tests)
+gymnasium>=1.0
+stable-baselines3>=2.0

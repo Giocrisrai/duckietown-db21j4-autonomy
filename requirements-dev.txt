@@ -6,3 +6,4 @@ onnx>=1.16
 onnxruntime>=1.17
 pupil-apriltags>=1.0
 moms-apriltag>=2.0
+gymnasium>=1.0
