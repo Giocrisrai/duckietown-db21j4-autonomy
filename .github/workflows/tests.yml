@@ -24,7 +24,7 @@ jobs:
           uv venv
           uv pip install -r requirements-dev.txt
       - name: Correr tests
-        run: uv run pytest -q
+        run: .venv/bin/python -m pytest -q
 
   docker-dev:
     name: dev container (Docker + uv)
