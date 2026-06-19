@@ -74,3 +74,11 @@ def test_pipeline_raspberry_libcamera():
     assert "raspberry" in supported_cameras()
     p = gst_pipeline("raspberry")
     assert "libcamerasrc" in p and "appsink" in p
+
+
+def test_soporta_ov5647_y_pi_m12():
+    from object_detection.camera_support import supported_cameras, detect_camera, gst_pipeline
+    cams = supported_cameras()
+    assert "ov5647" in cams and "pi-m12" in cams
+    assert detect_camera(dmesg="ov5647 1-0036: detected") == "ov5647"
+    assert "nvarguscamerasrc" in gst_pipeline("pi-m12")   # Pi M12 = IMX219 -> CSI nvargus

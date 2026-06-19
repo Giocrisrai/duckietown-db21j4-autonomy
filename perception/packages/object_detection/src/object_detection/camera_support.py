@@ -22,6 +22,14 @@ CAMERAS = {
         "tipo": "csi", "width": 1920, "height": 1080, "fps": 30, "flip": 0,
         "nota": "Sony IMX477 (HQ Camera)",
     },
+    "ov5647": {
+        "tipo": "csi", "width": 1280, "height": 720, "fps": 30, "flip": 0,
+        "nota": "OmniVision OV5647 (Raspberry Pi Cam v1, 5MP); requiere overlay OV5647 en el Jetson",
+    },
+    "pi-m12": {  # alias practico: la mayoria de camaras 'Pi M12' son IMX219 con lente M12
+        "tipo": "csi", "width": 1280, "height": 720, "fps": 30, "flip": 0,
+        "nota": "Raspberry Pi M12 (lente M12); normalmente sensor IMX219 -> usa overlay IMX219",
+    },
     "raspberry": {
         "tipo": "libcamera", "width": 1280, "height": 720, "fps": 30,
         "nota": "Raspberry Pi Camera (libcamera) - placa alternativa",
@@ -69,8 +77,8 @@ def gst_pipeline(sensor, width=None, height=None, fps=None, sensor_id=0, device=
     )
 
 
-# Orden de preferencia de sensores CSI conocidos (imx219 cubre tambien imx219-b).
-_CSI_SENSORS = ["imx477", "imx219"]
+# Orden de preferencia de sensores CSI conocidos (imx219 cubre tambien imx219-b/pi-m12).
+_CSI_SENSORS = ["imx477", "imx219", "ov5647"]
 
 
 def detect_camera(dmesg="", devices=()):
