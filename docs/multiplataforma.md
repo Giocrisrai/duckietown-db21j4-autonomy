@@ -32,7 +32,7 @@ docker compose -f docker-compose.dev.yaml run dev bash   # shell interactivo
 ## 2. Validar y simular ANTES de tocar el dispositivo
 
 Todo se valida/simula sin robot:
-- `tools/validate_stack.sh` — 193 tests + configs + compose.
+- `tools/validate_stack.sh` — 200 tests + configs + compose.
 - `make sim` — simulación de planificación (lazo cerrado).
 - Percepción ONNX, AprilTags, PID y RL: tienen simulación/validación propia.
 

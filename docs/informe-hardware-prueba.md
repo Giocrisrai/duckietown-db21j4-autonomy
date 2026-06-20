@@ -22,7 +22,7 @@ detallado en [diagnostico-hardware-campo.md](diagnostico-hardware-campo.md).
 - MCU/Duckiebattery (`04d8:ecb7`) enumera por USB; `/dev/ttyACM0` presente.
 - Bus I2C 0 limpio; bus 2 con sus EEPROMs (`0x50`, `0x57`). El controlador I2C
   del Jetson funciona en los otros buses.
-- Stack de software completo y validado (193 tests en host; la suite corre también
+- Stack de software completo y validado (200 tests en host; la suite corre también
   en contenedor en la propia Jetson, monitor de salud por red activo).
 
 ## Causas descartadas con evidencia

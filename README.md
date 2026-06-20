@@ -8,7 +8,7 @@ modernizado donde aporta valor:
 - **Seguir línea por visión clásica** (reutiliza `dt-core`, libera la GPU para una sola red).
 - **Planificación de ruta en dos capas**: reactiva (base que siempre funciona) + global A*/BFS cargable.
 - **Diagnóstico, calibración, monitoreo de salud por red y validación en un comando**, todo sin depender del shell `dts`.
-- **Entorno de entrenamiento reproducible** con **simulación y validación local** (sin robot) — **193 tests**.
+- **Entorno de entrenamiento reproducible** con **simulación y validación local** (sin robot) — **200 tests**.
 
 > **Revisión profunda y brechas vs Duckietown oficial:** [`docs/revision-profunda.md`](docs/revision-profunda.md) ← empieza por aquí para el panorama completo.
 >
@@ -50,9 +50,16 @@ docs/             # Revision profunda, spec, plan, runbook, calibracion, hardwar
 
 ```bash
 make setup          # instala dependencias de desarrollo (uv)
-make test           # corre toda la suite (193 tests)
+make test           # corre toda la suite (200 tests)
 make sim            # simula el cerebro de planificacion (sin robot)
+make sim-auto       # mision AUTONOMA end-to-end: cerebro completo en lazo cerrado
 ```
+
+El **cerebro autónomo integrado** (`duckietown_planning.autonomy.AutonomousController`)
+une en un solo controlador: fusión de obstáculos (YOLO26+ToF) → FSM de conducción →
+PID de carril → planeador global + política de intersección → localización.
+`make sim-auto` lo maneja en **lazo cerrado** (sigue carril, frena ante el pato, para y
+gira en intersecciones según la ruta, llega al destino) — todo sin robot.
 
 Entrenamiento / exportación:
 
@@ -66,7 +73,7 @@ make validate W=best.pt DATA=duckietown.yaml           # reporta mAP50 y umbral
 Notebook GPU: [`training/notebooks/colab_yolo26.ipynb`](training/notebooks/colab_yolo26.ipynb).
 Resultados: [`docs/resultados-entrenamiento.md`](docs/resultados-entrenamiento.md) (0.833 sintético → 0.871 → **0.937** real; transfer learning +0.273) · [`docs/resultados-rl.md`](docs/resultados-rl.md).
 
-## Validación local (sin robot) — 193 tests
+## Validación local (sin robot) — 200 tests
 
 `make test` cubre, con TDD: config/dataset/export de entrenamiento; pre/post-proceso de
 visión (letterbox, escala, filtro); multi-cámara y calibración; AprilTags; política de
@@ -116,7 +123,7 @@ distro `ente`), construir el engine TRT (`tools/build_trt_engine.sh`), `dts deve
 
 ## Estado honesto
 
-- **Sólido y testeado (193 tests):** toda la capa algorítmica/CPU (planning, percepción,
+- **Sólido y testeado (200 tests):** toda la capa algorítmica/CPU (planning, percepción,
   training, control, diagnósticos, RL, simulación).
 - **Implementado pero NO verificado en hardware:** los nodos ROS, el engine TensorRT real, el
   envío de motores y la calibración fina. El lazo de marcha se apoya en el `lane_controller`

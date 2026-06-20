@@ -9,7 +9,7 @@ Objetivo: ver qué nos faltó, qué conviene incorporar y qué NO copiar.
 
 ## Resumen ejecutivo (veredicto honesto)
 
-- **Capa algorítmica/CPU — sólida y bien testeada (193 tests):** percepción
+- **Capa algorítmica/CPU — sólida y bien testeada (200 tests):** percepción
   (letterbox/postproceso, multi-cámara, calibración, AprilTags), planificación
   (intersección reactiva, grafo+A*/BFS, localización, odometría, safety ToF),
   control (PID, teleop, secuencia de motores), simulación, diagnósticos, RL.
@@ -19,10 +19,15 @@ Objetivo: ver qué nos faltó, qué conviene incorporar y qué NO copiar.
   se validó con un modelo real; el lazo de marcha se apoya en el `lane_controller`
   **externo** de `dt-core`. (El robot `prueba` tiene el bus I2C-1 caído y la cámara
   con falla de contacto — ver [informe-hardware-prueba.md](informe-hardware-prueba.md).)
-- **Brechas funcionales reales frente al oficial** (detalle abajo): falta detección
-  de **línea roja de stop**, **ground projection + filtro d/φ**, **anti-Instagram**
-  (robustez a iluminación), **FSM explícita**, **fusión visual+ToF** de obstáculos,
-  **calibración extrínseca** de cámara y la **captura real** de calibración.
+- **Brechas funcionales reales frente al oficial** (detalle abajo): se cerraron
+  **anti-Instagram**, **línea roja de stop**, **fusión visual+ToF** y **FSM explícita**
+  (implementadas y testeadas); quedan **ground projection + filtro d/φ** y la
+  **calibración extrínseca** + captura real.
+- **Integración end-to-end (HECHO):** `duckietown_planning.autonomy.AutonomousController`
+  une FSM + fusión + PID + ruta global + intersección + localización en un cerebro único;
+  `simulation/sim_autonomy.py` valida en **lazo cerrado** una misión completa (sigue
+  carril, frena ante el pato, para y gira en intersecciones según la ruta, llega al
+  destino). Demo: `make sim-auto`. Falta solo el cableado a nodos ROS en el robot.
 
 ## 1. Lo que ya cubrimos (y dónde superamos al oficial)
 
