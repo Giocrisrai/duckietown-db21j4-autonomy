@@ -63,13 +63,23 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
   completo de aislamiento en [diagnostico-hardware-campo.md](diagnostico-hardware-campo.md).
 
 ## Gaps conocidos (pendientes honestos)
+> Análisis completo y priorizado en [revision-profunda.md](revision-profunda.md).
+
 | Funcionalidad oficial | Estado | Plan |
 |---|---|---|
-| Teleop / joystick | ⚠️ pendiente | Reusar `joy_mapper`/virtual joystick oficial vía launch (no requiere código propio) |
-| Procedimiento de captura de calibración de cámara (tablero) | ⚠️ parcial | Base de fábrica + validar/cargar/guardar/undistort está (`tools/calibrate.py`); la captura fina con tablero se hace en el robot |
-| Despliegue real en robot | ⚠️ pendiente | Requiere hardware: flashear, build TensorRT, conectar `~turn_cmd`→dt-car-interface |
-| Segmentación neuronal de carril | ⚠️ opcional | Por diseño usamos CV clásica (la Nana solo aguanta una red, YOLO26) |
-| gym-duckietown 3D oficial | ⚠️ opcional | Frágil en M1/Py3.13; se usó entorno RL propio |
+| **Línea roja de stop** (`stop_line_filter`) | 🔴 falta | Detectar la franja roja del piso → evento de "stop line". Hoy solo frenamos por ToF (no sabemos *dónde* parar en intersección vacía) |
+| **Ground projection + filtro d/φ** (`lane_filter`) | 🔴 parcial | Proyección px→suelo (req. calib. extrínseca) + filtro bayesiano d/φ, o reusar `lane_filter` de dt-core |
+| **Anti-Instagram** (color/iluminación) | 🔴 falta | Barato y de alto impacto: normalizar color antes del `line_detector` clásico |
+| **Calibración extrínseca de cámara** (homografía) | 🔴 falta | Añadir `camera_extrinsic/` + procedimiento `dts calibrate_extrinsics` (requisito de demos) |
+| **FSM explícita** (`fsm`) | 🟡 reactivo | FSM central (lane↔intersección↔stop↔coordinación) testeable |
+| **Fusión obstáculo visual+ToF** (`obstacle_detection`) | 🟡 parcial | Combinar YOLO26 (veo pato/coche) + ToF → frenado anticipado |
+| Coordinación interseccion + LED (`explicit_coordinator`) | 🟡 falta | Solo si la prueba es multi-robot (paquetes en daffy, no en ente) |
+| Teleop / joystick | ⚪ pendiente | Reusar `joy_mapper`/virtual joystick oficial vía launch |
+| Captura fina de calibración (tablero) | ⚪ parcial | Base de fábrica + I/O está (`tools/calibrate.py`); captura con tablero 3.1 cm en el robot |
+| Despliegue real en robot | ⚪ pendiente | Hardware: flashear, build TensorRT, conectar `~turn_cmd`→dt-car-interface |
+| Segmentación neuronal de carril | ⚪ opcional | Por diseño CV clásica (la Nana solo aguanta una red, YOLO26) |
+| gym-duckietown 3D oficial | ⚪ opcional | Frágil en M1/Py3.13; se usó entorno RL propio |
+| Formato submission AIDO | ⚪ opcional | Solo si se compite en AIDO oficial (empaquetado Docker) |
 
 ## Verificación
 - `tools/validate_stack.sh` → tests + launches + YAML + scripts + compose.
