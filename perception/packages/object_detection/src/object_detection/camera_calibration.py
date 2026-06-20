@@ -33,6 +33,20 @@ def load_intrinsics(path) -> dict:
     return validate_intrinsics(data)
 
 
+def save_intrinsics(path, data: dict):
+    """Valida y guarda el YAML de intrinsecos (formato ROS CameraInfo).
+
+    Simetrico a planning.calibration.save_kinematics: crea el directorio y
+    escribe el YAML que vive en el robot en
+    /data/config/calibrations/camera_intrinsic/<robot>.yaml.
+    """
+    full = validate_intrinsics(data)
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(full, sort_keys=True))
+    return path
+
+
 def camera_matrix(data: dict) -> np.ndarray:
     """Matriz intrinseca K (3x3)."""
     return np.array(data["camera_matrix"]["data"], dtype=np.float64).reshape(3, 3)

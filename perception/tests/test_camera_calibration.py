@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 from object_detection.camera_calibration import (
     validate_intrinsics, camera_matrix, dist_coeffs, CameraCalibrationError,
+    save_intrinsics, load_intrinsics,
 )
 
 SAMPLE = {
@@ -38,3 +39,19 @@ def test_camera_matrix_mal_dimensionada():
     bad = dict(SAMPLE, camera_matrix={"rows": 2, "cols": 2, "data": [1, 2, 3, 4]})
     with pytest.raises(CameraCalibrationError):
         validate_intrinsics(bad)
+
+
+def test_save_load_roundtrip(tmp_path):
+    dest = tmp_path / "camera_intrinsic" / "prueba.yaml"
+    save_intrinsics(dest, SAMPLE)
+    assert dest.exists()
+    cargado = load_intrinsics(dest)
+    assert cargado["image_width"] == 640
+    assert camera_matrix(cargado)[0, 0] == 300
+
+
+def test_save_valida_antes_de_escribir(tmp_path):
+    dest = tmp_path / "mala.yaml"
+    with pytest.raises(CameraCalibrationError):
+        save_intrinsics(dest, {"image_width": 640})
+    assert not dest.exists()
