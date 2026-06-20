@@ -80,7 +80,8 @@ def show(camera):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description="Calibracion del Duckiebot (cinematica + camara)")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd")
+    sub.required = True                                 # compat Python 3.6 (Jetson)
 
     g = sub.add_parser("generate", help="genera calibraciones base")
     g.add_argument("--robot", default="prueba")
