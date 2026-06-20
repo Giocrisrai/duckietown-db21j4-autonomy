@@ -71,8 +71,8 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
 | **Ground projection + filtro d/φ** (`lane_filter`) | 🔴 parcial | Proyección px→suelo (req. calib. extrínseca) + filtro bayesiano d/φ, o reusar `lane_filter` de dt-core |
 | **Anti-Instagram** (color/iluminación) | ✅ módulo | `object_detection.anti_instagram` (transformación lineal por percentiles), 6 tests. Pendiente: cablear antes del `line_detector` (nodo) |
 | **Calibración extrínseca de cámara** (homografía) | 🔴 falta | Añadir `camera_extrinsic/` + procedimiento `dts calibrate_extrinsics` (requisito de demos) |
-| **FSM explícita** (`fsm`) | 🟡 reactivo | FSM central (lane↔intersección↔stop↔coordinación) testeable |
-| **Fusión obstáculo visual+ToF** (`obstacle_detection`) | 🟡 parcial | Combinar YOLO26 (veo pato/coche) + ToF → frenado anticipado |
+| **FSM explícita** (`fsm`) | ✅ módulo | `duckietown_planning.fsm.DrivingFSM` (5 estados, seguridad prioritaria), 8 tests |
+| **Fusión obstáculo visual+ToF** (`obstacle_detection`) | ✅ módulo | `duckietown_planning.obstacle_fusion` (visión+ToF → GO/SLOW/STOP graduado), 12 tests |
 | Coordinación interseccion + LED (`explicit_coordinator`) | 🟡 falta | Solo si la prueba es multi-robot (paquetes en daffy, no en ente) |
 | Teleop / joystick | ⚪ pendiente | Reusar `joy_mapper`/virtual joystick oficial vía launch |
 | Captura fina de calibración (tablero) | ⚪ parcial | Base de fábrica + I/O está (`tools/calibrate.py`); captura con tablero 3.1 cm en el robot |

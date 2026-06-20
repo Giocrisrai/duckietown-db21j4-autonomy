@@ -9,7 +9,7 @@ Objetivo: ver qué nos faltó, qué conviene incorporar y qué NO copiar.
 
 ## Resumen ejecutivo (veredicto honesto)
 
-- **Capa algorítmica/CPU — sólida y bien testeada (173 tests):** percepción
+- **Capa algorítmica/CPU — sólida y bien testeada (193 tests):** percepción
   (letterbox/postproceso, multi-cámara, calibración, AprilTags), planificación
   (intersección reactiva, grafo+A*/BFS, localización, odometría, safety ToF),
   control (PID, teleop, secuencia de motores), simulación, diagnósticos, RL.
@@ -54,8 +54,8 @@ Objetivo: ver qué nos faltó, qué conviene incorporar y qué NO copiar.
 
 | Brecha | Por qué importa | Acción |
 |---|---|---|
-| **FSM explícita** (`fsm`) | Hoy es reactivo. Una FSM central (LANE_FOLLOWING ↔ INTERSECTION ↔ COORDINATION ↔ STOP) hace el comportamiento predecible y depurable. | Modelar la FSM como módulo testeable que orqueste qué política está activa. |
-| **Fusión obstáculo visual+ToF** (`obstacle_detection`) | El oficial hace OR de detección **visual** (vehículo/pato) con ToF → "virtual stop line". Nosotros tenemos YOLO26 y ToF por separado: falta el nodo que combine "veo un pato a X" → frenado anticipado suave. | Nodo de fusión YOLO26+ToF → señal de frenado graduada. |
+| ✅ **FSM explícita** (`fsm`) | Hoy es reactivo. Una FSM central (LANE_FOLLOWING ↔ INTERSECTION ↔ COORDINATION ↔ STOP) hace el comportamiento predecible y depurable. | **HECHO:** `duckietown_planning.fsm.DrivingFSM` (LANE_FOLLOWING/APPROACHING/AT_INTERSECTION/TURNING/STOPPED, seguridad con prioridad), 8 tests. |
+| ✅ **Fusión obstáculo visual+ToF** (`obstacle_detection`) | El oficial hace OR de detección **visual** (vehículo/pato) con ToF → "virtual stop line". Nosotros tenemos YOLO26 y ToF por separado: falta el nodo que combine "veo un pato a X" → frenado anticipado suave. | **HECHO:** `duckietown_planning.obstacle_fusion` (vision en camino + ToF → GO/SLOW/STOP graduado, reúsa `safety`), 12 tests. |
 | **Coordinación en intersección** (`explicit_coordinator`+`led_emitter/detection`) | Para intersecciones tipo semáforo y paso negociado **entre Duckiebots**. Obligatorio si la prueba es multi-robot; estos paquetes están en `daffy`, no en `ente`. | Solo si la competencia es multi-robot: portar desde daffy o implementar protocolo LED. |
 | **Señalización por LED** (`led_emitter`) | Señalizar giro/parada; puntúa en pruebas de coordinación. | Patrones LED semánticos sobre el driver de LED existente. |
 | **Verificar nuestro `apriltagsDB.yaml` vs el oficial** | Confirmar familia **tag36h11**, IDs (1=stop, 8=4-way, 9/10/11=T-intersect, 12=pedestrian, 13=semáforo) y medidas físicas (6.5 cm lado, 0.8 cm borde, 13 cm altura). | Diff contra `duckietown/signs-and-tags`; documentar medidas. |
