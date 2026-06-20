@@ -9,7 +9,7 @@ Objetivo: ver qué nos faltó, qué conviene incorporar y qué NO copiar.
 
 ## Resumen ejecutivo (veredicto honesto)
 
-- **Capa algorítmica/CPU — sólida y bien testeada (160 tests):** percepción
+- **Capa algorítmica/CPU — sólida y bien testeada (173 tests):** percepción
   (letterbox/postproceso, multi-cámara, calibración, AprilTags), planificación
   (intersección reactiva, grafo+A*/BFS, localización, odometría, safety ToF),
   control (PID, teleop, secuencia de motores), simulación, diagnósticos, RL.
@@ -45,9 +45,9 @@ Objetivo: ver qué nos faltó, qué conviene incorporar y qué NO copiar.
 
 | Brecha | Por qué importa | Esfuerzo | Acción |
 |---|---|---|---|
-| **Línea roja de stop** (`stop_line_filter`) | Las intersecciones se delimitan por línea **roja en el piso**, no por obstáculo. Sin esto el robot no sabe *dónde* parar en una intersección vacía. Hoy solo frenamos por ToF. | Medio | Nodo/módulo que detecte la franja roja y estime distancia → evento de "stop line" que dispare el navegador de intersección. |
+| ✅ **Línea roja de stop** (`stop_line_filter`) | Las intersecciones se delimitan por línea **roja en el piso**, no por obstáculo. Sin esto el robot no sabe *dónde* parar en una intersección vacía. Hoy solo frenamos por ToF. | Medio | **HECHO:** `object_detection.stop_line` (máscara HSV doble + ROI frontal + fracción + proxy de distancia), 7 tests. Pendiente: cablear al navegador de intersección (nodo). |
 | **Ground projection + filtro d/φ** (`ground_projection`+`lane_filter`) | Convierte píxeles→metros con la homografía y estima distancia al centro `d` y ángulo `phi` con un filtro bayesiano. Es el núcleo robusto del seguir-línea oficial. | Medio-Alto | Implementar proyección a suelo (requiere calibración **extrínseca**) + filtro de histograma d/φ, o reutilizar `lane_filter` de dt-core. |
-| **Anti-Instagram** (corrección color/iluminación) | La detección clásica de línea (que reutilizamos) usa umbrales HSV que se rompen con cambios de luz. **Barato y de altísimo impacto en robustez.** | Bajo | Portar `anti_instagram` o un normalizador de balance de color antes del `line_detector`. |
+| ✅ **Anti-Instagram** (corrección color/iluminación) | La detección clásica de línea (que reutilizamos) usa umbrales HSV que se rompen con cambios de luz. **Barato y de altísimo impacto en robustez.** | Bajo | **HECHO:** `object_detection.anti_instagram` (transformación lineal por canal por percentiles), 6 tests. Pendiente: cablear antes del `line_detector` (nodo). |
 | **Calibración extrínseca + captura real** | No tenemos `camera_extrinsic/` ni el procedimiento con tablero (3.1 cm). Sin extrínsecos la proyección a pista degrada; además es **requisito** de las demos. | Medio | Doc `calibracion-robot.md` + carpeta `camera_extrinsic/` + validador de homografía. La captura fina (`dts calibrate_intrinsics/extrinsics`) corre en el robot. |
 
 ### 🟡 Media prioridad (escenarios LFI/LFV con intersecciones u otros robots)

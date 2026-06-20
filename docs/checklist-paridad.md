@@ -67,9 +67,9 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
 
 | Funcionalidad oficial | Estado | Plan |
 |---|---|---|
-| **Línea roja de stop** (`stop_line_filter`) | 🔴 falta | Detectar la franja roja del piso → evento de "stop line". Hoy solo frenamos por ToF (no sabemos *dónde* parar en intersección vacía) |
+| **Línea roja de stop** (`stop_line_filter`) | ✅ módulo | `object_detection.stop_line` (HSV doble + ROI + distancia), 7 tests. Pendiente: cablear al navegador (nodo) |
 | **Ground projection + filtro d/φ** (`lane_filter`) | 🔴 parcial | Proyección px→suelo (req. calib. extrínseca) + filtro bayesiano d/φ, o reusar `lane_filter` de dt-core |
-| **Anti-Instagram** (color/iluminación) | 🔴 falta | Barato y de alto impacto: normalizar color antes del `line_detector` clásico |
+| **Anti-Instagram** (color/iluminación) | ✅ módulo | `object_detection.anti_instagram` (transformación lineal por percentiles), 6 tests. Pendiente: cablear antes del `line_detector` (nodo) |
 | **Calibración extrínseca de cámara** (homografía) | 🔴 falta | Añadir `camera_extrinsic/` + procedimiento `dts calibrate_extrinsics` (requisito de demos) |
 | **FSM explícita** (`fsm`) | 🟡 reactivo | FSM central (lane↔intersección↔stop↔coordinación) testeable |
 | **Fusión obstáculo visual+ToF** (`obstacle_detection`) | 🟡 parcial | Combinar YOLO26 (veo pato/coche) + ToF → frenado anticipado |
