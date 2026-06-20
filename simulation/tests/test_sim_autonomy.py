@@ -61,6 +61,15 @@ def test_start_igual_goal_llega_de_inmediato():
     assert r["turns_taken"] == []
 
 
+def test_callejon_sin_salida_no_crashea():
+    # Destino inalcanzable: B es un callejon sin salida (sin aristas salientes).
+    # El cerebro NO debe inventar un giro fantasma ni lanzar excepcion: se detiene.
+    g = MapGraph(["A", "B", "X"], [{"from": "A", "to": "B", "turn": "straight"}])
+    r = run_autonomy(g, "A", "X", max_ticks=2000)   # no debe lanzar ValueError
+    assert r["reached"] is False
+    assert r["final_node"] in ("A", "B")            # se quedo en el grafo, no descarrilo
+
+
 def test_pipeline_imagen_a_comportamiento():
     # Cadena REAL: imagen con franja roja -> anti-Instagram -> stop_line -> controlador.
     img = np.full((480, 640, 3), 40, dtype=np.uint8)     # escena oscura/sub-expuesta

@@ -53,10 +53,10 @@ class AutonomousController:
         return self.loc is not None and self.loc.current == self.goal
 
     def _available_turns(self):
+        # Con grafo: los giros REALES del nodo actual ([] si es callejon sin salida).
+        # Sin grafo (conduccion libre): "straight" por defecto.
         if self.graph is not None and self.loc is not None:
-            t = self.graph.turns_from(self.loc.current)
-            if t:
-                return t
+            return self.graph.turns_from(self.loc.current)
         return ["straight"]
 
     def step(self, obs, dt=0.05):
@@ -85,9 +85,13 @@ class AutonomousController:
             self._turn = None
 
         # 4) Al llegar a la interseccion, elegir el giro (global con respaldo reactivo).
+        #    Callejon sin salida (sin giros validos): no inventar giro fantasma; el
+        #    robot se queda detenido en la interseccion (seguro) en vez de descarrilar.
         if state == AT_INTERSECTION and self._turn is None:
-            planned = self.route[0] if self.route else None
-            self._turn = choose_turn(self._available_turns(), planned=planned)
+            available = self._available_turns()
+            if available:
+                planned = self.route[0] if self.route else None
+                self._turn = choose_turn(available, planned=planned)
 
         # 5) Orden de marcha segun el estado.
         v, omega = 0.0, 0.0
