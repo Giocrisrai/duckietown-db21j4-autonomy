@@ -1,9 +1,9 @@
 """Deteccion del microcontrolador de la HUT del Duckiebot DB21-J4 (USB-serial).
 
-HALLAZGO (hardware real): en el DB21-J4 los MOTORES, ENCODERS y LEDs los maneja un
-microcontrolador Atmel/Microchip que expone un puerto serie virtual (CDC ACM,
-/dev/ttyACM*) por USB -> NO por I2C. dt-duckiebot-interface habla con el por ahi.
-Por eso los buses I2C estaban vacios para motores: el control va por serial.
+En el DB21-J4 hay un MCU/Duckiebattery Atmel (04d8:ecb7) que expone un puerto serie
+virtual (CDC ACM, /dev/ttyACM*) por USB (power management / perifericos USB).
+NOTA: los MOTORES NO van por aqui -> usan PCA9685 (I2C 0x40) + GPIO via el header
+de 40 pines (driver oficial hat_driver/motor.py). Este modulo solo detecta el MCU USB.
 """
 
 # USB del MCU de la HUT (Atmel/Microchip "Virtual COM-Port").
