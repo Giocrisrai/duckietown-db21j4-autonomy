@@ -56,6 +56,11 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
 - **Cámara**: CSI directa al Jetson (nvargus, autodetección IMX219/OV5647/Pi-M12) o USB fallback.
 - **DIAGNÓSTICO CLAVE**: si el **USB del MCU aparece pero el I2C está vacío**, el **header de
   40 pines no está mateado** -> el Jetson no está bien clavado en la HUT (reasentar a fondo).
+- **Bus 1 COLGADO** (i2cdetect se cuelga) que **sobrevive al reset del controlador**
+  (`unbind/bind` de `tegra-i2c`) **y** a alimentar con batería+fuente -> fallo **físico**:
+  pin doblado puenteando SDA/SCL, chip I2C del HUT en corto, o HUT defectuosa.
+  Cámara con `-121` en dmesg = **flex CSI mal contactado** (no es overlay). Procedimiento
+  completo de aislamiento en [diagnostico-hardware-campo.md](diagnostico-hardware-campo.md).
 
 ## Gaps conocidos (pendientes honestos)
 | Funcionalidad oficial | Estado | Plan |
