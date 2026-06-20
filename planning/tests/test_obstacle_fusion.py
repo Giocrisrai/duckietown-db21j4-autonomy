@@ -36,6 +36,12 @@ def test_tof_lejano_sin_obstaculos_avanza():
     assert r["action"] == "GO" and r["brake"] == 0.0
 
 
+def test_tof_nan_para_fail_safe():
+    # ToF NaN (sensor averiado/eco ambiguo) -> el cerebro frena, no avanza a ciegas.
+    r = fuse([], float("nan"), W, H)
+    assert r["action"] == "STOP" and r["tof_stop"] is True
+
+
 def test_pato_cerca_en_camino_para_por_vision():
     det = [_det("duckie", _centro(int(0.9 * H)))]            # bajo en la imagen -> cerca
     r = fuse(det, 1.0, W, H)

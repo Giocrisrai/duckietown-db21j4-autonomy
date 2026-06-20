@@ -16,6 +16,13 @@ def test_lectura_invalida_no_frena():
     assert should_brake(None) is False
 
 
+def test_nan_frena_fail_safe():
+    # NaN = lectura ambigua/error del sensor (no "sin objeto"): frenar por seguridad,
+    # coherente con should_brake_range. inf SI es "sin objeto en rango" -> no frena.
+    assert should_brake(float("nan")) is True
+    assert should_brake(float("inf")) is False
+
+
 def test_umbral_personalizado():
     assert should_brake(0.25, threshold_m=0.30) is True
 
