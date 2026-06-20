@@ -28,9 +28,18 @@ detallado en [diagnostico-hardware-campo.md](diagnostico-hardware-campo.md).
 ## Causas descartadas con evidencia
 | Causa | Prueba | Resultado |
 |---|---|---|
-| Software / driver | `unbind`+`bind` de `tegra-i2c` en `7000c400.i2c` | bus 1 **sigue colgado** |
-| Energía | batería cargada + fuente externa | bus 1 **sigue colgado**, Jetson estable, sin `under-voltage` en dmesg |
-| Asentado / montaje | múltiples reasentados + inspección del header | bus 1 **sigue colgado**, sin cambio |
+| Software / driver | `unbind`+`bind` de `tegra-i2c` en `7000c000.i2c` y `7000c400.i2c` | buses 0 y 1 **siguen colgados** |
+| Energía / batería | **9 h 40 min de uptime sin apagarse**, batería cargada + fuente; `POM_5V_IN` estable, térmicos fríos, sin `under-voltage` | buses **siguen colgados**; energía **descartada definitivamente** |
+| Asentado / montaje | múltiples reasentados + inspección del header | sin cambio |
+
+## Re-verificación (tras horas, por si era batería)
+A las ~9.7 h de uptime continuo (sin un solo apagón), **ambos buses I2C del header
+de 40 pines** (`7000c000` = bus 0, pines 27/28; `7000c400` = bus 1, pines 3/5)
+**se cuelgan** — antes solo el bus 1. El fallo **se amplió** a los dos buses del
+header. El bus 2 interno (EEPROMs 0x50/0x57) sigue OK, así que los controladores
+I2C del Jetson funcionan: el problema es el **acople de 40 pines / la HUT**
+(probable común-modo: tierra/alimentación del header intermitente, o un pin
+puenteado que arrastra ambos buses). La batería queda **100% descartada**.
 
 ## Conclusión
 Una línea I2C (SDA/SCL) del **bus 1** queda **tomada físicamente** de forma
