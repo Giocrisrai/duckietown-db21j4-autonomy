@@ -134,3 +134,19 @@ def test_duck_crossing_cede_a_pato_lateral_en_el_lazo():
     assert sin["n_stops"] == 0                            # sin senal: el lateral no detiene
     assert con["signs_detected"] == ["yield"]            # duck-crossing -> accion yield
     assert con["n_stops"] >= 1                            # con la senal: cede al cruce
+
+
+def test_4way_turna_por_prioridad_en_el_lazo():
+    # Senal de 4-way REAL (detectada en el lazo, accion 'intersection') + otro
+    # Duckiebot con prioridad a la derecha: el robot cede su turno (espera) hasta
+    # que el de la derecha pasa, y luego procede; completa la mision.
+    pytest.importorskip("pupil_apriltags")
+    pytest.importorskip("moms_apriltag")
+    g = _mapa_3_intersecciones()
+    base = run_mission_image_loop(g, "A", "D")
+    con = run_mission_image_loop(g, "A", "D", signs={0: _id_de_tipo("4-way-intersect")},
+                                 priority_vehicle_ticks=range(0, 66))
+    assert con["reached"] is True
+    assert con["turns_taken"] == ["right", "straight", "left"]
+    assert con["signs_detected"] == ["intersection"]      # 4-way -> accion intersection
+    assert con["ticks"] > base["ticks"]                   # cedio su turno -> espero mas

@@ -182,6 +182,40 @@ def test_senal_de_cruce_cede_a_pato_al_costado():
     assert cmd2["state"] == LANE_FOLLOWING
 
 
+def test_4way_cede_al_vehiculo_de_la_derecha():
+    # En un 4-way (accion 'intersection') se turna por prioridad: se cede al vehiculo
+    # de la DERECHA y se procede cuando no hay nadie con prioridad.
+    g = MapGraph(["A", "B"], [{"from": "A", "to": "B", "turn": "right"}])
+    bot_derecha = {"class_name": "duckiebot", "bbox": (500, 320, 600, 440), "confidence": 0.9}
+    bot_izquierda = {"class_name": "duckiebot", "bbox": (40, 320, 140, 440), "confidence": 0.9}
+
+    def en_interseccion(ctrl):
+        ctrl.step({"lane_error": 0.0, "stop_line": True})
+        ctrl.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True,
+                   "sign_action": "intersection", "detections": [bot_derecha]})
+
+    # Vehiculo a la derecha: cede (espera su turno).
+    c1 = AutonomousController(g, "A", "B")
+    en_interseccion(c1)
+    for _ in range(4):
+        st = c1.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True,
+                      "sign_action": "intersection", "detections": [bot_derecha]})["state"]
+    assert st == AT_INTERSECTION                          # cedio al de la derecha
+    # El de la derecha ya paso -> es su turno, procede.
+    estados = [c1.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True,
+                        "sign_action": "intersection", "detections": []})["state"]
+               for _ in range(3)]
+    assert TURNING in estados
+
+    # Vehiculo a la IZQUIERDA (sin prioridad): procede de inmediato.
+    c2 = AutonomousController(g, "A", "B")
+    c2.step({"lane_error": 0.0, "stop_line": True})
+    libres = [c2.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True,
+                       "sign_action": "intersection", "detections": [bot_izquierda]})["state"]
+              for _ in range(3)]
+    assert TURNING in libres
+
+
 def test_pipeline_imagen_a_comportamiento():
     # Cadena REAL: imagen con franja roja -> anti-Instagram -> stop_line -> controlador.
     img = np.full((480, 640, 3), 40, dtype=np.uint8)     # escena oscura/sub-expuesta

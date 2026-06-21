@@ -107,6 +107,26 @@ class AutonomousController:
                 return True
         return False
 
+    def _priority_vehicle_right(self, obs, classes=("duckiebot",),
+                               right_frac=0.55, min_prox=0.4, min_conf=0.25):
+        """True si hay un vehiculo (duckiebot) con PRIORIDAD a la derecha en un
+        4-way: su centro cae en la zona derecha de la imagen y esta cerca. Regla de
+        4-way stop: se cede al de la derecha."""
+        for d in obs.get("detections", []):
+            if d.get("class_name") not in classes:
+                continue
+            if d.get("confidence", 1.0) < min_conf:
+                continue
+            bbox = d.get("bbox")
+            if bbox is None:
+                continue
+            x1, _, x2, _ = bbox
+            cx = (x1 + x2) / 2.0
+            if (cx > right_frac * self.img_w
+                    and obstacle_fusion.bbox_proximity(bbox, self.img_h) >= min_prox):
+                return True
+        return False
+
     def _available_turns(self):
         # Con grafo: los giros REALES del nodo actual ([] si es callejon sin salida).
         # Sin grafo (conduccion libre): "straight" por defecto.
@@ -168,6 +188,8 @@ class AutonomousController:
                 must_wait = True
             elif sign == "yield":
                 must_wait = decision["action"] != "GO"   # yield: cede solo si hay obstaculo
+            elif sign == "intersection":
+                must_wait = self._priority_vehicle_right(obs)   # 4-way: cede al de la derecha
             else:
                 must_wait = False
             if not must_wait:
