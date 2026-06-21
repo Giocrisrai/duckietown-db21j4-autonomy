@@ -28,6 +28,7 @@ WHITE_HIGH = (179, 60, 255)
 
 HALF_LANE = 0.11          # media calzada (m): media anchura nominal del carril DB21
 ROI_FRAC = 0.5            # mira la mitad inferior (el suelo frente al robot)
+OPEN_KSIZE = 3           # apertura morfologica: borra el speckle del ruido del sensor
 
 
 def lane_offset(yellow_y, white_y, half_lane=HALF_LANE):
@@ -92,15 +93,20 @@ def _line_stats(mask, homography, y0):
             gy.append(y)
     if not gx:
         return None, None
-    lateral = float(np.mean(gy))
+    lateral = float(np.median(gy))              # mediana: robusta a pixeles espurios (ruido)
     slope = None
     if len(set(gx)) >= 2:                       # hace falta variacion en x para la recta
         slope = float(np.polyfit(gx, gy, 1)[0])
     return lateral, slope
 
 
-def estimate_lane_pose(bgr, homography, half_lane=HALF_LANE, roi_frac=ROI_FRAC):
+def estimate_lane_pose(bgr, homography, half_lane=HALF_LANE, roi_frac=ROI_FRAC,
+                       open_ksize=OPEN_KSIZE):
     """Estima la pose de carril desde una imagen BGR y la homografia.
+
+    `open_ksize`: lado del kernel de apertura morfologica que limpia el speckle del
+    ruido del sensor (0 lo desactiva). Junto con la mediana en _line_stats hace la
+    estimacion robusta a ruido gaussiano y a oclusiones parciales de las lineas.
 
     Devuelve un dict:
       - detected (bool): se vio al menos una linea proyectable.
@@ -114,6 +120,10 @@ def estimate_lane_pose(bgr, homography, half_lane=HALF_LANE, roi_frac=ROI_FRAC):
     hsv = cv2.cvtColor(bgr[y0:, :], cv2.COLOR_BGR2HSV)
     yellow = cv2.inRange(hsv, np.array(YELLOW_LOW), np.array(YELLOW_HIGH))
     white = cv2.inRange(hsv, np.array(WHITE_LOW), np.array(WHITE_HIGH))
+    if open_ksize and open_ksize >= 2:
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (open_ksize, open_ksize))
+        yellow = cv2.morphologyEx(yellow, cv2.MORPH_OPEN, kernel)
+        white = cv2.morphologyEx(white, cv2.MORPH_OPEN, kernel)
     yellow_y, yellow_slope = _line_stats(yellow, homography, y0)
     white_y, white_slope = _line_stats(white, homography, y0)
     d = lane_offset(yellow_y, white_y, half_lane)

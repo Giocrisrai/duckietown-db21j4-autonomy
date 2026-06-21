@@ -50,3 +50,32 @@ def test_curva_cerrada_se_mantiene_en_carril():
     # Curva apretada de Duckietown (R=0.5 m): aun asi sigue dentro del carril.
     r = run_image_loop(off0=0.0, psi0=0.0, curvature=2.0, steps=200)
     assert r["max_abs_off"] < 0.08
+
+
+def test_converge_con_ruido_gaussiano():
+    # Ruido fuerte del sensor (sigma=25): la apertura morfologica + mediana en la
+    # estimacion de pose lo absorben y el lazo sigue convergiendo al centro.
+    r = run_image_loop(off0=0.06, psi0=0.10, steps=200, noise_sigma=25, seed=1)
+    assert abs(r["off"][-1]) < 0.02
+    assert r["max_abs_off"] < 0.10
+
+
+def test_sigue_curva_con_ruido():
+    # Curva + ruido del sensor: sigue dentro del carril.
+    r = run_image_loop(off0=0.0, psi0=0.0, curvature=1.2, steps=200,
+                       noise_sigma=20, seed=2)
+    assert r["max_abs_off"] < 0.06
+
+
+def test_converge_con_oclusion_parcial():
+    # Una banda central tapada (sombra/pato sobre parte de las lineas): el robot
+    # usa lo que ve (incl. una sola linea por geometria) y sigue convergiendo.
+    r = run_image_loop(off0=0.06, psi0=0.10, steps=200, occlusion=0.12, seed=3)
+    assert abs(r["off"][-1]) < 0.03
+
+
+def test_converge_con_brillo_y_ruido():
+    # Sobre-iluminacion + ruido a la vez: sigue convergiendo.
+    r = run_image_loop(off0=0.06, psi0=0.10, steps=200, brightness=70,
+                       noise_sigma=15, seed=4)
+    assert abs(r["off"][-1]) < 0.02

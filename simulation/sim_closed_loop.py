@@ -75,8 +75,27 @@ def render(off, dpsi, curvature=0.0):
     return img
 
 
+def _perturb(img, rng, noise_sigma, brightness, occlusion):
+    """Aplica ruido realista de camara: gaussiano, sesgo de brillo y oclusion.
+
+    occlusion: fraccion (0..1) del ancho tapada por una banda vertical (sombra/pato).
+    """
+    out = img.astype(np.int16)
+    if brightness:
+        out += int(brightness)
+    if noise_sigma > 0:
+        out += rng.normal(0, noise_sigma, img.shape).astype(np.int16)
+    out = np.clip(out, 0, 255).astype(np.uint8)
+    if occlusion > 0:
+        w = int(IMG_W * occlusion)
+        x0 = (IMG_W - w) // 2
+        out[:, x0:x0 + w] = BG_BGR                  # banda central tapada
+    return out
+
+
 def run_image_loop(off0=0.06, psi0=0.0, steps=200, dt=0.05, base_speed=0.3,
-                   kp=3.0, k_heading=0.5, curvature=0.0):
+                   kp=3.0, k_heading=0.5, curvature=0.0,
+                   noise_sigma=0.0, brightness=0, occlusion=0.0, seed=0):
     """Corre el lazo cerrado imagen->imagen y devuelve un trace.
 
     Control PROPORCIONAL puro sobre el error de carril combinado d + k_heading*phi:
@@ -91,10 +110,13 @@ def run_image_loop(off0=0.06, psi0=0.0, steps=200, dt=0.05, base_speed=0.3,
     pid = PID(kp, 0.0, 0.0, out_limits=(-5.0, 5.0))
     ctrl = AutonomousController(homography=_H, base_speed=base_speed,
                                img_size=(IMG_W, IMG_H), pid=pid, k_heading=k_heading)
+    rng = np.random.default_rng(seed)
     off, dpsi = float(off0), float(psi0)
     offs, dpsis, omegas = [off], [dpsi], []
     for _ in range(steps):
         img = render(off, dpsi, curvature)
+        if noise_sigma or brightness or occlusion:
+            img = _perturb(img, rng, noise_sigma, brightness, occlusion)
         cmd = ctrl.step({"image": img, "img_w": IMG_W, "img_h": IMG_H}, dt)
         v, omega = cmd["v"], cmd["omega"]
         # Modelo cinematico en el marco de Frenet (carril de curvatura `curvature`):
@@ -119,8 +141,13 @@ def _demo():
     media_omega = sum(rc["omega"][len(rc["omega"]) // 2:]) / (len(rc["omega"]) // 2)
     print("  [curva]  R={:.2f} m: error lateral max {:.3f} m, omega medio {:+.2f} rad/s (sigue la curva)".format(
         1.0 / 1.2, rc["max_abs_off"], media_omega))
-    print("  OK: el lazo percepcion->control siguio el carril (recto y en curva)."
-          if r["converged"] and rc["max_abs_off"] < 0.08 else "  FALLO.")
+    rn = run_image_loop(off0=0.06, psi0=0.10, steps=200, noise_sigma=25,
+                        occlusion=0.12, seed=1)
+    print("  [ruido]  sigma=25 + oclusion 12%: desviacion final {:+.3f} m (robusto)".format(
+        rn["off"][-1]))
+    print("  OK: el lazo percepcion->control siguio el carril (recto, curva y con ruido)."
+          if r["converged"] and rc["max_abs_off"] < 0.08 and abs(rn["off"][-1]) < 0.03
+          else "  FALLO.")
 
 
 if __name__ == "__main__":
