@@ -158,6 +158,30 @@ def test_yield_cede_solo_si_hay_obstaculo():
     assert TURNING in libres
 
 
+def test_senal_de_cruce_cede_a_pato_al_costado():
+    # Una senal de peaton / duck-crossing (accion 'yield') hace ceder a un pato que
+    # cruza por el lateral (fuera del corredor central) -> el robot para; sin la
+    # senal, ese pato lateral no bloquea y sigue. Al despejarse, reanuda.
+    pato_lateral = {"class_name": "duckie", "bbox": (500, 300, 580, 440), "confidence": 0.9}
+
+    # Sin senal de cruce: el pato lateral no esta en el camino -> sigue (GO).
+    c0 = AutonomousController()
+    cmd0 = c0.step({"lane_error": 0.0, "detections": [pato_lateral],
+                    "img_w": 640, "img_h": 480})
+    assert cmd0["decision"]["action"] == "GO"
+
+    # Con senal de cruce: cede aunque el pato venga por el lateral.
+    c1 = AutonomousController()
+    cmd1 = c1.step({"lane_error": 0.0, "detections": [pato_lateral],
+                    "sign_action": "yield", "img_w": 640, "img_h": 480})
+    assert cmd1["state"] == STOPPED
+    assert cmd1["decision"]["reason"] == "cruce"
+    # El pato termina de cruzar -> reanuda.
+    cmd2 = c1.step({"lane_error": 0.0, "detections": [], "sign_action": "yield",
+                    "img_w": 640, "img_h": 480})
+    assert cmd2["state"] == LANE_FOLLOWING
+
+
 def test_pipeline_imagen_a_comportamiento():
     # Cadena REAL: imagen con franja roja -> anti-Instagram -> stop_line -> controlador.
     img = np.full((480, 640, 3), 40, dtype=np.uint8)     # escena oscura/sub-expuesta

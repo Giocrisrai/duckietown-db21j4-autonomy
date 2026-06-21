@@ -119,3 +119,18 @@ def test_apriltag_stop_para_siempre_yield_solo_si_obstaculo():
     assert yld["signs_detected"] == ["yield"]
     assert stop["ticks"] > base["ticks"]                  # stop SIEMPRE para -> mas ticks
     assert yld["ticks"] <= base["ticks"] + 2              # yield despejado NO para
+
+
+def test_duck_crossing_cede_a_pato_lateral_en_el_lazo():
+    # Senal de duck-crossing REAL (detectada en el lazo) + un pato cruzando por el
+    # lateral: el robot cede (para). Sin la senal, ese pato lateral no lo detiene.
+    pytest.importorskip("pupil_apriltags")
+    pytest.importorskip("moms_apriltag")
+    g = _mapa_3_intersecciones()
+    sin = run_mission_image_loop(g, "A", "D", crossing_duck_ticks=range(0, 70))
+    con = run_mission_image_loop(g, "A", "D", signs={0: _id_de_tipo("duck-crossing")},
+                                 crossing_duck_ticks=range(0, 70))
+    assert sin["reached"] and con["reached"]
+    assert sin["n_stops"] == 0                            # sin senal: el lateral no detiene
+    assert con["signs_detected"] == ["yield"]            # duck-crossing -> accion yield
+    assert con["n_stops"] >= 1                            # con la senal: cede al cruce

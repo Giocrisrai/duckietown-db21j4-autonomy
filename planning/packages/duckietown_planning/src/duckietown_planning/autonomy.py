@@ -89,6 +89,24 @@ class AutonomousController:
                 return err
         return obs.get("lane_error", 0.0)
 
+    def _crossing_present(self, obs, classes=("duckie", "pedestrian"),
+                          band=1.0, min_prox=0.4, min_conf=0.25):
+        """True si hay un pato/peaton cruzando en la zona ANCHA (todo el ancho),
+        aunque no este en el corredor central. Lo usa el cede-cruce de las senales
+        de peaton / duck-crossing para ceder a quien cruza por el lateral."""
+        for d in obs.get("detections", []):
+            if d.get("class_name") not in classes:
+                continue
+            if d.get("confidence", 1.0) < min_conf:
+                continue
+            bbox = d.get("bbox")
+            if bbox is None:
+                continue
+            if (obstacle_fusion.in_path(bbox, self.img_w, band=band)
+                    and obstacle_fusion.bbox_proximity(bbox, self.img_h) >= min_prox):
+                return True
+        return False
+
     def _available_turns(self):
         # Con grafo: los giros REALES del nodo actual ([] si es callejon sin salida).
         # Sin grafo (conduccion libre): "straight" por defecto.
@@ -104,6 +122,12 @@ class AutonomousController:
         decision = obstacle_fusion.fuse(
             obs.get("detections", []), obs.get("tof"), self.img_w, self.img_h,
             homography=self.homography)
+        # Cede-cruce: una senal de peaton / duck-crossing (accion 'yield') hace ceder
+        # a quien cruza por el LATERAL (que la fusion central no marcaria) -> parar.
+        if (decision["action"] == "GO" and obs.get("sign_action") == "yield"
+                and self._crossing_present(obs)):
+            decision = {"action": "STOP", "brake": 1.0, "reason": "cruce",
+                        "tof_stop": False, "max_proximity": 0.0, "distance_m": None}
 
         # 2) FSM: la seguridad manda; el giro queda "listo" si ya lo elegimos.
         #    Con homografia y distancia metrica a la franja, paramos a una distancia fija.

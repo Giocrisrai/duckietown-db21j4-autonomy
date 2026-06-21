@@ -31,6 +31,12 @@ def test_tag_peaton_cede():
     assert tag_meaning(12) == ("pedestrian", "yield")
 
 
+def test_tag_duck_crossing_cede():
+    # duck-crossing tambien cede (accion yield) -> dispara el cede-cruce del cerebro.
+    assert SIGN_ACTIONS["duck-crossing"] == "yield"
+    assert SIGN_ACTIONS["pedestrian"] == "yield"
+
+
 def test_tag_desconocido():
     assert tag_meaning(999999) == ("unknown", None)
 

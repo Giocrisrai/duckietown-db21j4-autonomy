@@ -28,6 +28,9 @@ STOP_LINE_PAINT_M = 0.30
 SEG_CURVATURES = (0.0, 1.2, -1.2, 0.8)   # curvatura por tramo (cicla): recto/curvos
 # Pato en el corredor central y bajo en la imagen -> fusion lo situa cerca (STOP).
 DUCK = {"class_name": "duckie", "bbox": (280, 300, 360, 460), "confidence": 0.9}
+# Pato cruzando por el LATERAL (fuera del corredor central): solo cede ante el si
+# hay una senal de cruce (peaton / duck-crossing) activa.
+SIDE_DUCK = {"class_name": "duckie", "bbox": (500, 320, 590, 450), "confidence": 0.9}
 
 
 def paint_stop_line(img, dist, half_w=0.13):
@@ -39,7 +42,8 @@ def paint_stop_line(img, dist, half_w=0.13):
 def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
                            turn_ticks=3, dt=0.05, base_speed=0.3, max_ticks=4000,
                            noise_sigma=0.0, brightness=0, occlusion=0.0, seed=0,
-                           obstacle_ticks=(), signs=None, stop_sign_dwell=5):
+                           obstacle_ticks=(), signs=None, stop_sign_dwell=5,
+                           crossing_duck_ticks=()):
     """Corre la mision completa en lazo imagen->imagen y devuelve un trace.
 
     noise_sigma/brightness/occlusion: ruido realista de camara aplicado a CADA
@@ -55,6 +59,7 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
     n_stops, signs_detected, ticks.
     """
     obstacle_ticks = set(obstacle_ticks)
+    crossing_duck_ticks = set(crossing_duck_ticks)
     sign_patches = {}                                 # parches de senal precomputados por tramo
     if signs:
         from sim_apriltags import make_tag_image
@@ -110,13 +115,18 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
 
         # 3) CEREBRO: conduce con la imagen (lane_error interno) + eventos de franja
         #    + obstaculo (fusion vision+ToF) + senal (parada obligatoria por AprilTag).
-        obstacle = t in obstacle_ticks
+        detections = []
+        tof = None
+        if t in obstacle_ticks:
+            detections.append(DUCK)
+            tof = 0.10
+        if t in crossing_duck_ticks:
+            detections.append(SIDE_DUCK)              # pato cruzando por el lateral
         cmd = ctrl.step({
             "image": img, "img_w": IMG_W, "img_h": IMG_H,
             "stop_line": sl["detected"], "stop_line_distance_m": sl["distance_m"],
             "turn_done": pending_turn_done,
-            "detections": [DUCK] if obstacle else [],
-            "tof": 0.10 if obstacle else None,
+            "detections": detections, "tof": tof,
             "sign_action": sign_action,
         }, dt)
         st = cmd["state"]
@@ -190,6 +200,10 @@ def _demo():
               f"(+{rs['ticks']-base['ticks']} vs base: parada obligatoria)")
         print(f"  AprilTag YIELD    : detectada={ry['signs_detected']} ticks={ry['ticks']} "
               f"(~base: despejado, cede solo si hay obstaculo)")
+        duckx_id = next(i for i, t in db.items() if t == "duck-crossing")
+        rx = run_mission_image_loop(g, "A", "D", signs={0: duckx_id}, crossing_duck_ticks=range(0, 70))
+        print(f"  AprilTag CRUCE    : detectada={rx['signs_detected']} paradas={rx['n_stops']} "
+              f"(cede a un pato cruzando por el lateral)")
     except Exception as e:                            # deps de AprilTag ausentes
         print(f"  AprilTags         : (omitido: {type(e).__name__})")
     print("  OK: el cerebro condujo TODA la mision solo con pixeles "
