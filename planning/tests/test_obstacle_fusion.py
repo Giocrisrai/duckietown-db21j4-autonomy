@@ -82,6 +82,49 @@ def test_tof_y_vision_juntos_reportan_ambos():
     assert r["action"] == "STOP" and r["reason"] == "tof+vision"
 
 
+# --- Distancia METRICA via homografia (calibracion extrinseca) ---
+from object_detection.ground_projection import estimate_homography, ground_to_pixel
+
+_Hmat = estimate_homography(
+    [(180.0, 400.0), (460.0, 400.0), (260.0, 250.0), (380.0, 250.0)],
+    [(0.10, 0.10), (0.10, -0.10), (0.30, 0.10), (0.30, -0.10)],
+)
+
+
+def _det_a_distancia(dist_m, alto=80, ancho=80):
+    """Detección de pato cuyo borde inferior (centrado) proyecta a dist_m metros."""
+    u, v = ground_to_pixel(_Hmat, dist_m, 0.0)              # punto de suelo centrado
+    return _det("duckie", (u - ancho / 2, v - alto, u + ancho / 2, v))
+
+
+def test_metrica_pato_muy_cerca_para():
+    r = fuse([_det_a_distancia(0.15)], None, W, H, homography=_Hmat)
+    assert r["action"] == "STOP" and r["reason"] == "vision"
+    assert abs(r["distance_m"] - 0.15) < 1e-3
+
+
+def test_metrica_pato_media_frena_suave():
+    r = fuse([_det_a_distancia(0.30)], None, W, H, homography=_Hmat)
+    assert r["action"] == "SLOW"
+    assert 0.0 < r["brake"] < 1.0
+
+
+def test_metrica_pato_lejos_avanza():
+    r = fuse([_det_a_distancia(0.60)], None, W, H, homography=_Hmat)
+    assert r["action"] == "GO"
+
+
+def test_sin_homografia_distance_m_es_none():
+    r = fuse([_det("duckie", _centro(int(0.9 * H)))], None, W, H)
+    assert r["distance_m"] is None                          # compatibilidad hacia atras
+
+
+def test_metrica_tof_sigue_mandando():
+    # Aunque la vision metrica diga lejos, el ToF cercano frena igual (OR de seguridad).
+    r = fuse([_det_a_distancia(0.60)], 0.10, W, H, homography=_Hmat)
+    assert r["action"] == "STOP" and r["tof_stop"] is True
+
+
 def test_frenado_graduado_monotono():
     cerca = fuse([_det("duckie", _centro(int(0.75 * H)))], 1.0, W, H)["brake"]
     lejos = fuse([_det("duckie", _centro(int(0.55 * H)))], 1.0, W, H)["brake"]
