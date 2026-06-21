@@ -48,7 +48,7 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
                            noise_sigma=0.0, brightness=0, occlusion=0.0, seed=0,
                            obstacle_ticks=(), signs=None, stop_sign_dwell=5,
                            crossing_duck_ticks=(), priority_vehicle_ticks=(),
-                           main_road_vehicle_ticks=()):
+                           main_road_vehicle_ticks=(), forbidden_turns=None):
     """Corre la mision completa en lazo imagen->imagen y devuelve un trace.
 
     noise_sigma/brightness/occlusion: ruido realista de camara aplicado a CADA
@@ -67,6 +67,7 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
     crossing_duck_ticks = set(crossing_duck_ticks)
     priority_vehicle_ticks = set(priority_vehicle_ticks)
     main_road_vehicle_ticks = set(main_road_vehicle_ticks)
+    forbidden_turns = forbidden_turns or {}
     sign_patches = {}                                 # parches de senal precomputados por tramo
     if signs:
         from sim_apriltags import make_tag_image
@@ -133,12 +134,14 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
             detections.append(BOT_RIGHT)              # vehiculo con prioridad a la derecha (4-way)
         if t in main_road_vehicle_ticks:
             detections.append(BOT_LEFT)               # vehiculo en la via principal por la izquierda (T)
+        # do-not-enter detectado: prohibe el giro indicado para este tramo.
+        forbidden_turn = forbidden_turns.get(seg_idx) if sign_action == "no-entry" else None
         cmd = ctrl.step({
             "image": img, "img_w": IMG_W, "img_h": IMG_H,
             "stop_line": sl["detected"], "stop_line_distance_m": sl["distance_m"],
             "turn_done": pending_turn_done,
             "detections": detections, "tof": tof,
-            "sign_action": sign_action,
+            "sign_action": sign_action, "forbidden_turn": forbidden_turn,
         }, dt)
         st = cmd["state"]
         if st == STOPPED and prev_state != STOPPED:
@@ -223,6 +226,12 @@ def _demo():
         rt = run_mission_image_loop(g, "A", "D", signs={0: t_id}, main_road_vehicle_ticks=range(0, 66))
         print(f"  AprilTag T-INTER  : detectada={rt['signs_detected']} ticks={rt['ticks']} "
               f"(+{rt['ticks']-base['ticks']} vs base: cede a la via principal, izq y der)")
+        dne_id = next(i for i, t in db.items() if t == "do-not-enter")
+        gdne = MapGraph(["A", "B"], [{"from": "A", "to": "B", "turn": "straight"},
+                                     {"from": "A", "to": "B", "turn": "right"}])
+        rd = run_mission_image_loop(gdne, "A", "B", signs={0: dne_id}, forbidden_turns={0: "straight"})
+        print(f"  AprilTag NO-ENTRY : detectada={rd['signs_detected']} giro={rd['turns_taken']} "
+              f"(prohibio 'straight', tomo la alternativa)")
     except Exception as e:                            # deps de AprilTag ausentes
         print(f"  AprilTags         : (omitido: {type(e).__name__})")
     print("  OK: el cerebro condujo TODA la mision solo con pixeles "

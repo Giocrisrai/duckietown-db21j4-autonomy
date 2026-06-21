@@ -165,3 +165,19 @@ def test_T_interseccion_cede_a_la_via_principal_en_el_lazo():
     assert con["turns_taken"] == ["right", "straight", "left"]
     assert con["signs_detected"] == ["yield-main"]        # T -> cede a la via principal
     assert con["ticks"] > base["ticks"]                   # cedio al de la izquierda -> espero mas
+
+
+def test_do_not_enter_evita_el_giro_en_el_lazo():
+    # Senal do-not-enter REAL (detectada -> 'no-entry') que prohibe 'straight': el
+    # robot toma la salida alternativa ('right') hacia el mismo destino.
+    pytest.importorskip("pupil_apriltags")
+    pytest.importorskip("moms_apriltag")
+    g = MapGraph(["A", "B"], [{"from": "A", "to": "B", "turn": "straight"},
+                              {"from": "A", "to": "B", "turn": "right"}])
+    sin = run_mission_image_loop(g, "A", "B")
+    con = run_mission_image_loop(g, "A", "B", signs={0: _id_de_tipo("do-not-enter")},
+                                 forbidden_turns={0: "straight"})
+    assert sin["turns_taken"] == ["straight"]             # sin senal: el giro planeado
+    assert con["reached"] is True
+    assert con["signs_detected"] == ["no-entry"]
+    assert con["turns_taken"] == ["right"]                # evito 'straight', tomo la alternativa

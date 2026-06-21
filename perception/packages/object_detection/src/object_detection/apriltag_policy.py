@@ -13,7 +13,7 @@ _DB_PATH = Path(__file__).resolve().parent / "data" / "apriltagsDB.yaml"
 # Accion del robot por tipo de senal (segun semantica Duckietown).
 SIGN_ACTIONS = {
     "stop": "stop",
-    "do-not-enter": "stop",
+    "do-not-enter": "no-entry",          # prohibe ENTRAR a esa via (no es un alto)
     "yield": "yield",
     "pedestrian": "yield",         # ceder ante peatones
     "duck-crossing": "yield",      # ceder ante patos

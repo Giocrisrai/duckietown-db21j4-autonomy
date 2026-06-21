@@ -49,6 +49,11 @@ def test_tag_desconocido():
     assert tag_meaning(999999) == ("unknown", None)
 
 
+def test_do_not_enter_es_no_entry():
+    # do-not-enter prohibe entrar a esa via (no es un alto) -> accion 'no-entry'.
+    assert SIGN_ACTIONS["do-not-enter"] == "no-entry"
+
+
 def test_select_prioriza_stop():
     # id 8 (interseccion) + id 1 (stop) -> stop manda
     assert select_action([8, 1]) == "stop"

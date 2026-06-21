@@ -239,6 +239,27 @@ def test_t_interseccion_cede_a_la_via_principal():
     assert proceder_con("yield-main", []) is True
 
 
+def test_do_not_enter_prohibe_ese_giro():
+    # Una senal do-not-enter prohibe entrar a esa via: el robot NO toma ese giro y
+    # elige una alternativa valida. Mapa con dos salidas hacia B (recto y derecha).
+    g = MapGraph(["A", "B"], [{"from": "A", "to": "B", "turn": "straight"},
+                              {"from": "A", "to": "B", "turn": "right"}])
+
+    def giro_elegido(forbidden):
+        ctrl = AutonomousController(g, "A", "B")
+        ctrl.step({"lane_error": 0.0, "stop_line": True})     # APPROACHING
+        obs = {"lane_error": 0.0, "stop_line": True, "at_stop_line": True}
+        if forbidden:
+            obs["forbidden_turn"] = forbidden
+        ctrl.step(obs)                                        # AT_INTERSECTION -> elige giro
+        return ctrl._turn
+
+    # Sin prohibicion: toma el giro planeado (recto, primero del BFS).
+    assert giro_elegido(None) == "straight"
+    # Con do-not-enter sobre 'straight': evita ese giro y toma la alternativa.
+    assert giro_elegido("straight") == "right"
+
+
 def test_pipeline_imagen_a_comportamiento():
     # Cadena REAL: imagen con franja roja -> anti-Instagram -> stop_line -> controlador.
     img = np.full((480, 640, 3), 40, dtype=np.uint8)     # escena oscura/sub-expuesta

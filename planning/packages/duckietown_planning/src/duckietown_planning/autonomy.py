@@ -214,6 +214,11 @@ class AutonomousController:
                 must_wait = False
             if not must_wait:
                 available = self._available_turns()
+                # do-not-enter: excluir el giro prohibido (no entrar a esa via); si
+                # el plan pedia ese giro, choose_turn cae a una alternativa valida.
+                forbidden = obs.get("forbidden_turn")
+                if forbidden is not None:
+                    available = [t for t in available if t != forbidden]
                 if available:
                     planned = self.route[0] if self.route else None
                     self._turn = choose_turn(available, planned=planned)
