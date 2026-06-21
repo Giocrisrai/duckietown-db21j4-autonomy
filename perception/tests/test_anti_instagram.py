@@ -47,6 +47,14 @@ def test_canal_plano_no_revienta():
     assert out.shape == img.shape
 
 
+def test_canal_plano_no_cero_pasa_identico():
+    # Un canal plano en un valor != 0 (p. ej. R saturado a 255 por sobreexposicion)
+    # debe pasar SIN CAMBIOS (identidad), no colapsar a 0 al restar su propio shift.
+    img = np.full((10, 1, 3), [50, 80, 255], dtype=np.uint8)  # R plano en 255
+    out = correct(img)
+    assert (out[:, :, 2] == 255).all()                        # R intacto, no a 0
+
+
 def test_corrige_dominante_de_color():
     # imagen con tinte azul (B alto, R bajo) -> tras corregir, los canales quedan
     # mas balanceados (el rango de cada canal se normaliza a [0,255])

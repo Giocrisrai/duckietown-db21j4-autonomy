@@ -39,12 +39,16 @@ def compute_transform(img, low_pct=LOW_PCT, high_pct=HIGH_PCT):
     """Calcula (scale[C], shift[C]) que mapea [low, high] -> [0, 255] por canal.
 
     out = clip((in - shift) * scale, 0, 255). Si un canal es plano (high==low),
-    su scale es 1.0 (no toca ese canal) para evitar division por cero.
+    queda como IDENTIDAD (scale=1, shift=0): no se toca ese canal. Restarle su
+    propio `low` lo colapsaria a 0 (p. ej. un canal saturado a 255 por
+    sobreexposicion se volveria negro), destruyendo informacion en vez de
+    preservarla.
     """
     low, high = channel_bounds(img, low_pct, high_pct)
     span = high - low
-    scale = np.where(span > EPS, 255.0 / np.maximum(span, EPS), 1.0)
-    shift = low
+    flat = span <= EPS
+    scale = np.where(flat, 1.0, 255.0 / np.maximum(span, EPS))
+    shift = np.where(flat, 0.0, low)
     return scale, shift
 
 

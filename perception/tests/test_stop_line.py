@@ -1,6 +1,7 @@
 """Tests de deteccion de la linea roja de stop."""
 import numpy as np
 from object_detection.stop_line import red_mask, detect_stop_line
+from object_detection.anti_instagram import correct
 
 
 def _frame(h=100, w=60, color=(50, 50, 50)):
@@ -66,3 +67,14 @@ def test_roi_ignora_rojo_superior():
     assert detect_stop_line(img, roi_frac=0.5)["detected"] is False
     # pero si miramos toda la imagen, si
     assert detect_stop_line(img, roi_frac=1.0)["detected"] is True
+
+
+def test_sobreexpuesta_recuperable_tras_anti_instagram():
+    # Sobreexposicion fuerte: la franja roja se lava a (210,210,255) sobre piso
+    # blanco. El rojo crudo cae bajo el umbral de saturacion, pero queda info
+    # recuperable (canales B/G). Tras anti-Instagram debe volver a detectarse.
+    img = np.full((100, 60, 3), (120, 120, 120), np.uint8)
+    img[70:95, :] = (40, 40, 200)                        # franja roja
+    over = np.clip(img.astype(np.int32) + 170, 0, 255).astype(np.uint8)
+    assert detect_stop_line(over)["detected"] is False    # cruda: se pierde
+    assert detect_stop_line(correct(over))["detected"] is True  # corregida: vuelve
