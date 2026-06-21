@@ -19,8 +19,9 @@ from duckietown_planning.fsm import (
     LANE_FOLLOWING, APPROACHING_INTERSECTION, TURNING,
 )
 from object_detection.stop_line import detect_stop_line
-from sim_closed_loop import render, _paint, _H, IMG_W, IMG_H
+from sim_closed_loop import render, _paint, _perturb, _H, IMG_W, IMG_H
 from pid import PID
+import numpy as _np
 
 # Distancia (m) a la que se empieza a pintar la franja (entra en rango detectable).
 STOP_LINE_PAINT_M = 0.30
@@ -34,11 +35,16 @@ def paint_stop_line(img, dist, half_w=0.13):
 
 
 def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
-                           turn_ticks=3, dt=0.05, base_speed=0.3, max_ticks=4000):
+                           turn_ticks=3, dt=0.05, base_speed=0.3, max_ticks=4000,
+                           noise_sigma=0.0, brightness=0, occlusion=0.0, seed=0):
     """Corre la mision completa en lazo imagen->imagen y devuelve un trace.
+
+    noise_sigma/brightness/occlusion: ruido realista de camara aplicado a CADA
+    frame antes de la percepcion (gaussiano, sesgo de brillo, banda ocluida).
 
     Devuelve dict: reached, final_node, turns_taken, n_intersections, max_off, ticks.
     """
+    rng = _np.random.default_rng(seed)
     route = plan_route(graph, start, goal)
     n_seg = len(route) if route else 0
     # Control PROPORCIONAL puro sobre d + k_heading*phi (el rumbo aporta el
@@ -64,6 +70,8 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
         dist_to_line = seg_len - s
         if 0.0 < dist_to_line <= STOP_LINE_PAINT_M:
             paint_stop_line(img, dist_to_line)
+        if noise_sigma or brightness or occlusion:
+            img = _perturb(img, rng, noise_sigma, brightness, occlusion)
 
         # 2) PERCEPCION de la franja sobre la imagen real (con homografia -> metros).
         sl = detect_stop_line(img, homography=_H)
@@ -123,8 +131,12 @@ def _demo():
     print(f"  giros ejecutados  : {r['turns_taken']}")
     print(f"  error lateral max : {r['max_off']:.3f} m  (siguio el carril por vision)")
     print(f"  llego al destino  : {r['reached']}  (nodo final: {r['final_node']})  en {r['ticks']} ticks")
+    rn = run_mission_image_loop(g, "A", "D", noise_sigma=25, brightness=50, seed=1)
+    print(f"  con ruido (s=25)  : llego={rn['reached']} giros={rn['turns_taken']} "
+          f"(percepcion robusta)")
     print("  OK: el cerebro condujo TODA la mision solo con pixeles "
-          "(carril + franja + giros + ruta)." if r["reached"] else "  FALLO")
+          "(carril + franja + giros + ruta), limpia y con ruido."
+          if r["reached"] and rn["reached"] else "  FALLO")
 
 
 if __name__ == "__main__":

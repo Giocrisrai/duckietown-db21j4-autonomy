@@ -22,18 +22,28 @@ RED_HIGH_2 = (179, 255, 255)
 MIN_FRACTION = 0.02       # fraccion minima de pixeles rojos en la ROI para "detectada"
 ROI_FRAC = 0.5            # mira solo la mitad INFERIOR (lo que el robot tiene delante)
 EPS_FRAC = 1e-3
+OPEN_KSIZE = 3           # apertura morfologica: borra el speckle rojo del ruido del sensor
 
 
-def red_mask(bgr):
-    """Mascara binaria (0/255) de los pixeles rojos de una imagen BGR."""
+def red_mask(bgr, open_ksize=OPEN_KSIZE):
+    """Mascara binaria (0/255) de los pixeles rojos de una imagen BGR.
+
+    Una apertura morfologica (open_ksize, 0 la desactiva) elimina los pixeles rojos
+    aislados que crea el ruido del sensor, que de otro modo dispararian una franja
+    de stop FALSA donde no la hay.
+    """
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     m1 = cv2.inRange(hsv, np.array(RED_LOW_1), np.array(RED_HIGH_1))
     m2 = cv2.inRange(hsv, np.array(RED_LOW_2), np.array(RED_HIGH_2))
-    return cv2.bitwise_or(m1, m2)
+    mask = cv2.bitwise_or(m1, m2)
+    if open_ksize and open_ksize >= 2:
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (open_ksize, open_ksize))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    return mask
 
 
 def detect_stop_line(bgr, min_fraction=MIN_FRACTION, roi_frac=ROI_FRAC,
-                     homography=None):
+                     homography=None, open_ksize=OPEN_KSIZE):
     """Detecta la franja roja de stop en la ROI frontal (inferior) de la imagen.
 
     Devuelve un dict:
@@ -50,7 +60,7 @@ def detect_stop_line(bgr, min_fraction=MIN_FRACTION, roi_frac=ROI_FRAC,
     h = bgr.shape[0]
     roi_frac = min(max(roi_frac, EPS_FRAC), 1.0)
     y0 = int(round(h * (1.0 - roi_frac)))     # inicio de la ROI inferior
-    mask = red_mask(bgr)
+    mask = red_mask(bgr, open_ksize=open_ksize)
     roi = mask[y0:, :]
     red_fraction = float(np.count_nonzero(roi)) / float(roi.size)
     if red_fraction < min_fraction:

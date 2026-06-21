@@ -39,3 +39,20 @@ def test_otra_ruta_mas_corta():
     r = run_mission_image_loop(g, "A", "C")          # dos intersecciones
     assert r["reached"] is True
     assert r["turns_taken"] == ["right", "straight"]
+
+
+def test_mision_completa_con_ruido():
+    # Mision entera con ruido fuerte del sensor: la apertura morfologica (carril y
+    # franja) lo absorbe -> llega ejecutando la ruta sin falsas franjas ni perder el carril.
+    r = run_mission_image_loop(_mapa_3_intersecciones(), "A", "D",
+                               noise_sigma=25, seed=1)
+    assert r["reached"] is True
+    assert r["turns_taken"] == ["right", "straight", "left"]
+    assert r["max_off"] < 0.08
+
+
+def test_mision_completa_con_brillo_y_ruido():
+    r = run_mission_image_loop(_mapa_3_intersecciones(), "A", "D",
+                               noise_sigma=20, brightness=60, seed=3)
+    assert r["reached"] is True
+    assert r["turns_taken"] == ["right", "straight", "left"]
