@@ -56,3 +56,39 @@ def test_mision_completa_con_brillo_y_ruido():
                                noise_sigma=20, brightness=60, seed=3)
     assert r["reached"] is True
     assert r["turns_taken"] == ["right", "straight", "left"]
+
+
+def test_obstaculo_en_recta_frena_y_completa():
+    # Pato en el primer tramo recto: el robot frena (fusion vision+ToF) y, al
+    # despejarse, reanuda y completa la mision con la ruta correcta.
+    r = run_mission_image_loop(_mapa_3_intersecciones(), "A", "D",
+                               obstacle_ticks=range(20, 40))
+    assert r["reached"] is True
+    assert r["n_stops"] >= 1
+    assert r["turns_taken"] == ["right", "straight", "left"]
+
+
+def test_obstaculo_en_curva_se_mantiene_en_carril():
+    # Pato en el tramo curvo: frena y, al reanudar, vuelve a engancharse a la curva.
+    r = run_mission_image_loop(_mapa_3_intersecciones(), "A", "D",
+                               obstacle_ticks=range(90, 120))
+    assert r["reached"] is True
+    assert r["n_stops"] >= 1
+    assert r["max_off"] < 0.08
+
+
+def test_obstaculo_y_ruido_juntos():
+    r = run_mission_image_loop(_mapa_3_intersecciones(), "A", "D",
+                               obstacle_ticks=range(20, 40), noise_sigma=25, seed=1)
+    assert r["reached"] is True
+    assert r["turns_taken"] == ["right", "straight", "left"]
+
+
+def test_robusto_a_la_temporizacion_del_obstaculo():
+    # Un pato de 12 ticks empezando en distintos momentos (incl. giros e
+    # intersecciones) -> la mision siempre se completa (reanudacion robusta).
+    g = _mapa_3_intersecciones()
+    for t0 in (10, 55, 90, 130, 170):
+        r = run_mission_image_loop(g, "A", "D", obstacle_ticks=range(t0, t0 + 12))
+        assert r["reached"] is True, f"fallo con obstaculo en t0={t0}"
+        assert r["turns_taken"] == ["right", "straight", "left"]
