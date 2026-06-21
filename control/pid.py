@@ -23,7 +23,7 @@ class PID:
         """Devuelve la salida de control para el error actual y paso dt (s)."""
         # Proporcional
         p = self.kp * error
-        # Integral con anti-windup
+        # Integral (tentativo) con anti-windup por clamp opcional del integral.
         self._integral += error * dt
         if self.i_limits is not None:
             lo, hi = self.i_limits
@@ -38,5 +38,11 @@ class PID:
         out = p + i + d
         if self.out_limits is not None:
             lo, hi = self.out_limits
+            # Anti-windup por saturacion del ACTUADOR (integracion condicional):
+            # si la salida se satura y el error empuja MAS hacia el tope violado,
+            # deshacer la integracion de este paso para que el integral no crezca
+            # sin limite y el actuador no quede "pegado" al revertir el error.
+            if (out > hi and error > 0) or (out < lo and error < 0):
+                self._integral -= error * dt
             out = max(lo, min(hi, out))
         return out
