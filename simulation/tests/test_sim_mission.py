@@ -181,3 +181,26 @@ def test_do_not_enter_evita_el_giro_en_el_lazo():
     assert con["reached"] is True
     assert con["signs_detected"] == ["no-entry"]
     assert con["turns_taken"] == ["right"]                # evito 'straight', tomo la alternativa
+
+
+def test_replanifica_tras_desvio_en_el_lazo():
+    # do-not-enter REAL que fuerza un desvio que EXIGE re-planificar: la ruta planea
+    # A-B-D pero se prohibe 'straight' en A. El robot se desvia a C, re-planifica y
+    # toma 'left' -> D (sin re-planificar, la reactiva iria a E, fuera de ruta).
+    pytest.importorskip("pupil_apriltags")
+    pytest.importorskip("moms_apriltag")
+    g = MapGraph(
+        ["A", "B", "C", "D", "E"],
+        [
+            {"from": "A", "to": "B", "turn": "straight"},
+            {"from": "A", "to": "C", "turn": "right"},
+            {"from": "B", "to": "D", "turn": "straight"},
+            {"from": "C", "to": "D", "turn": "left"},
+            {"from": "C", "to": "E", "turn": "right"},
+        ],
+    )
+    r = run_mission_image_loop(g, "A", "D", signs={0: _id_de_tipo("do-not-enter")},
+                               forbidden_turns={0: "straight"})
+    assert r["reached"] is True and r["final_node"] == "D"
+    assert r["signs_detected"] == ["no-entry"]
+    assert r["turns_taken"] == ["right", "left"]          # desvio + re-planificacion correcta

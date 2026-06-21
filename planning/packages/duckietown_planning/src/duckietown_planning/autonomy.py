@@ -188,7 +188,11 @@ class AutonomousController:
             if self.loc is not None:
                 self.loc.update(self._turn)
             if self.route and self._turn == self.route[0]:
-                self.route.pop(0)
+                self.route.pop(0)                     # giro segun el plan: avanzar la ruta
+            elif self.graph is not None and self.loc is not None:
+                # Desvio (giro distinto al planeado, p. ej. por do-not-enter):
+                # re-planificar la ruta desde el nodo actual al destino.
+                self.route = plan_route(self.graph, self.loc.current, self.goal) or []
             self.pid.reset()
             self._turn = None
             self._sign_dwell = 0                      # reiniciar la parada por senal

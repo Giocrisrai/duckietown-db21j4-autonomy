@@ -260,6 +260,45 @@ def test_do_not_enter_prohibe_ese_giro():
     assert giro_elegido("straight") == "right"
 
 
+def _cruzar_interseccion(ctrl, forbidden=None):
+    """Lleva al controlador por una interseccion (aproximar -> linea -> girar ->
+    completar) y devuelve el giro ejecutado."""
+    ctrl.step({"lane_error": 0.0, "stop_line": True})            # APPROACHING
+    obs = {"lane_error": 0.0, "stop_line": True, "at_stop_line": True}
+    if forbidden:
+        obs["forbidden_turn"] = forbidden
+    ctrl.step(obs)                                               # AT_INTERSECTION -> elige giro
+    giro = ctrl._turn
+    ctrl.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True})  # TURNING
+    ctrl.step({"lane_error": 0.0, "turn_done": True})           # completa -> LANE_FOLLOWING
+    return giro
+
+
+def test_replanifica_tras_desvio_por_do_not_enter():
+    # Mapa asimetrico: la ruta planea A-B-D (straight, straight), pero un do-not-enter
+    # en A prohibe 'straight'. El robot se desvia a C; SIN re-planificar, la politica
+    # reactiva tomaria 'right' (-> E, fuera de ruta). Re-planificando desde C, toma
+    # 'left' -> D y llega.
+    g = MapGraph(
+        ["A", "B", "C", "D", "E"],
+        [
+            {"from": "A", "to": "B", "turn": "straight"},
+            {"from": "A", "to": "C", "turn": "right"},
+            {"from": "B", "to": "D", "turn": "straight"},
+            {"from": "C", "to": "D", "turn": "left"},      # camino correcto del desvio
+            {"from": "C", "to": "E", "turn": "right"},      # trampa: prioridad reactiva
+        ],
+    )
+    ctrl = AutonomousController(g, "A", "D")
+    assert ctrl.route == ["straight", "straight"]               # plan original A-B-D
+
+    g1 = _cruzar_interseccion(ctrl, forbidden="straight")        # A: prohibido straight
+    assert g1 == "right" and ctrl.loc.current == "C"            # se desvio a C
+    g2 = _cruzar_interseccion(ctrl)                              # C: re-planificado
+    assert g2 == "left" and ctrl.loc.current == "D"            # tomo el camino correcto
+    assert ctrl.reached()                                       # llego al destino pese al desvio
+
+
 def test_pipeline_imagen_a_comportamiento():
     # Cadena REAL: imagen con franja roja -> anti-Instagram -> stop_line -> controlador.
     img = np.full((480, 640, 3), 40, dtype=np.uint8)     # escena oscura/sub-expuesta
