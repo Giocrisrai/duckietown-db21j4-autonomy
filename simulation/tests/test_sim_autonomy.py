@@ -133,3 +133,41 @@ def test_cerebro_para_en_franja_por_distancia_metrica():
     s2 = ctrl.step({"lane_error": 0.0, "stop_line": True,
                     "stop_line_distance_m": 0.05, "img_w": 640, "img_h": 480})
     assert s2["state"] == AT_INTERSECTION                # a 0.05 m (<0.10) se detiene
+
+
+from object_detection.lane_pose import HALF_LANE
+
+
+def _img_carril(centro_y, pendiente=0.0):
+    """Imagen sintetica de carril (amarilla izq, blanca der) proyectada con _HMAT."""
+    img = np.full((480, 640, 3), (60, 60, 60), np.uint8)
+    for x in (0.14, 0.18, 0.22, 0.26, 0.30):
+        cy = centro_y + pendiente * x
+        for y, color in ((cy + HALF_LANE, (0, 200, 200)), (cy - HALF_LANE, (240, 240, 240))):
+            u, v = ground_to_pixel(_HMAT, x, y)
+            uu, vv = int(round(u)), int(round(v))
+            img[max(0, vv - 8):vv + 8, max(0, uu - 8):uu + 8] = color
+    return img
+
+
+def test_cerebro_calcula_lane_error_desde_imagen():
+    # Con homografia e imagen, el cerebro estima (d, phi) y corrige solo (sin que
+    # nadie le pase lane_error). Robot derivado a la derecha -> omega>0 (izquierda).
+    ctrl = AutonomousController(homography=_HMAT)
+    cmd = ctrl.step({"image": _img_carril(0.05), "img_w": 640, "img_h": 480})
+    assert cmd["omega"] > 0.05                            # corrige hacia la izquierda
+    assert cmd["lane_pose"]["d"] > 0.02                   # expone la pose estimada
+
+    # Carril centrado -> sin correccion apreciable.
+    ctrl2 = AutonomousController(homography=_HMAT)
+    cmd2 = ctrl2.step({"image": _img_carril(0.0), "img_w": 640, "img_h": 480})
+    assert abs(cmd2["omega"]) < 0.05
+
+
+def test_cerebro_imagen_sin_homografia_usa_lane_error():
+    # Sin homografia, la imagen se ignora y manda el lane_error escalar (compat).
+    ctrl = AutonomousController()                         # sin homografia
+    cmd = ctrl.step({"image": _img_carril(0.05), "lane_error": 0.0,
+                     "img_w": 640, "img_h": 480})
+    assert abs(cmd["omega"]) < 1e-9                       # uso el escalar (0.0)
+    assert cmd.get("lane_pose") is None

@@ -35,7 +35,7 @@ _TURN_OMEGA = {"left": 1.5, "right": -1.5, "straight": 0.0}
 class AutonomousController:
     def __init__(self, graph=None, start=None, goal=None, base_speed=0.3,
                  pid=None, img_size=(640, 480), homography=None,
-                 stop_line_stop_m=0.10):
+                 stop_line_stop_m=0.10, k_heading=0.5):
         self.graph = graph
         self.goal = goal
         self.base_speed = base_speed
@@ -53,6 +53,8 @@ class AutonomousController:
         # METRICA real al suelo en vez de proxies.
         self.homography = self._load_homography(homography)
         self.stop_line_stop_m = stop_line_stop_m     # m: distancia a la que se para en la franja
+        self.k_heading = k_heading                   # peso del termino de rumbo en el error de carril
+        self._last_pose = None                       # ultima pose de carril estimada (telemetria)
 
     @staticmethod
     def _load_homography(h):
@@ -66,6 +68,25 @@ class AutonomousController:
         """True si la localizacion indica que llegamos al destino."""
         return self.loc is not None and self.loc.current == self.goal
 
+    def _lane_error(self, obs):
+        """Error de carril para el PID.
+
+        Si la observacion trae `image` y hay homografia, lo estima de la camara:
+        proyecta las lineas al suelo -> (d, phi) -> error = d + k_heading*phi
+        (cross-track + heading). Si no hay imagen / linea, usa el escalar
+        `lane_error` (compatibilidad con quien ya lo entrega calculado).
+        """
+        img = obs.get("image")
+        if img is not None and self.homography is not None:
+            from object_detection.lane_pose import (  # import diferido (paquete percepcion)
+                estimate_lane_pose, steering_error)
+            pose = estimate_lane_pose(img, self.homography)
+            err = steering_error(pose["d"], pose["phi"], self.k_heading)
+            if err is not None:
+                self._last_pose = pose
+                return err
+        return obs.get("lane_error", 0.0)
+
     def _available_turns(self):
         # Con grafo: los giros REALES del nodo actual ([] si es callejon sin salida).
         # Sin grafo (conduccion libre): "straight" por defecto.
@@ -75,6 +96,7 @@ class AutonomousController:
 
     def step(self, obs, dt=0.05):
         """Avanza un tick. Devuelve la orden de marcha y la telemetria."""
+        self._last_pose = None                       # pose de carril de ESTE tick (si la hay)
         # 1) Fusion de obstaculos (vision + ToF) -> GO/SLOW/STOP.
         #    Con homografia decide por distancia metrica real (no por el proxy del bbox).
         decision = obstacle_fusion.fuse(
@@ -118,7 +140,7 @@ class AutonomousController:
         # 5) Orden de marcha segun el estado.
         v, omega = 0.0, 0.0
         if state in (LANE_FOLLOWING, APPROACHING_INTERSECTION):
-            omega = self.pid.step(obs.get("lane_error", 0.0), dt)
+            omega = self.pid.step(self._lane_error(obs), dt)
             v = self.base_speed * (1.0 - decision["brake"])      # SLOW reduce; GO pleno
         elif state == TURNING:
             v = self.base_speed * 0.5
@@ -128,4 +150,5 @@ class AutonomousController:
         return {
             "v": v, "omega": omega, "state": state, "turn": self._turn,
             "decision": decision, "reached": self.reached(),
+            "lane_pose": self._last_pose,
         }
