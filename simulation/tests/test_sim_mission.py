@@ -1,4 +1,6 @@
 """Test de la mision COMPLETA multi-interseccion en el lazo imagen->imagen."""
+import pytest
+
 from duckietown_planning.map_graph import MapGraph
 from sim_mission import run_mission_image_loop
 
@@ -92,3 +94,25 @@ def test_robusto_a_la_temporizacion_del_obstaculo():
         r = run_mission_image_loop(g, "A", "D", obstacle_ticks=range(t0, t0 + 12))
         assert r["reached"] is True, f"fallo con obstaculo en t0={t0}"
         assert r["turns_taken"] == ["right", "straight", "left"]
+
+
+def _id_de_tipo(tipo):
+    from object_detection.apriltag_policy import _db
+    return next(i for i, t in _db().items() if t == tipo)
+
+
+def test_apriltag_de_stop_detectado_en_el_lazo_impone_parada():
+    # AprilTags REALES pintados en las senales y detectados con pupil-apriltags
+    # SOBRE el frame renderizado: el cerebro ve 'stop'/'yield' y hace la parada
+    # obligatoria, alargando la mision frente a la version sin senales.
+    pytest.importorskip("pupil_apriltags")
+    pytest.importorskip("moms_apriltag")
+    g = _mapa_3_intersecciones()
+    base = run_mission_image_loop(g, "A", "D")
+    con = run_mission_image_loop(g, "A", "D",
+                                 signs={0: _id_de_tipo("stop"), 2: _id_de_tipo("yield")},
+                                 stop_sign_dwell=8)
+    assert con["reached"] is True
+    assert con["turns_taken"] == ["right", "straight", "left"]
+    assert con["signs_detected"] == ["stop", "yield"]     # detectadas por vision en el lazo
+    assert con["ticks"] > base["ticks"]                   # las paradas obligatorias alargan la mision

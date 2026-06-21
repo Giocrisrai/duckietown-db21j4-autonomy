@@ -107,6 +107,30 @@ def test_callejon_sin_salida_no_crashea():
     assert r["final_node"] in ("A", "B")            # se quedo en el grafo, no descarrilo
 
 
+def test_senal_de_stop_impone_parada_antes_de_girar():
+    # Un AprilTag de stop en la interseccion obliga a una parada (dwell) antes de
+    # girar; sin la senal el robot gira en cuanto llega a la linea.
+    g = MapGraph(["A", "B"], [{"from": "A", "to": "B", "turn": "right"}])
+
+    def ticks_hasta_girar(sign):
+        ctrl = AutonomousController(g, "A", "B", stop_sign_dwell=4)
+        ctrl.step({"lane_error": 0.0, "stop_line": True})     # APPROACHING
+        n_at = 0
+        for _ in range(12):                                   # llega a la linea (con/ sin senal)
+            obs = {"lane_error": 0.0, "stop_line": True, "at_stop_line": True}
+            if sign:
+                obs["sign_action"] = sign
+            st = ctrl.step(obs)["state"]
+            if st == TURNING:
+                return n_at
+            if st == AT_INTERSECTION:
+                n_at += 1
+        return n_at
+
+    assert ticks_hasta_girar("stop") >= 4                     # parada obligatoria por la senal
+    assert ticks_hasta_girar(None) <= 1                       # sin senal gira de inmediato
+
+
 def test_pipeline_imagen_a_comportamiento():
     # Cadena REAL: imagen con franja roja -> anti-Instagram -> stop_line -> controlador.
     img = np.full((480, 640, 3), 40, dtype=np.uint8)     # escena oscura/sub-expuesta

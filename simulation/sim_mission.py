@@ -39,18 +39,28 @@ def paint_stop_line(img, dist, half_w=0.13):
 def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
                            turn_ticks=3, dt=0.05, base_speed=0.3, max_ticks=4000,
                            noise_sigma=0.0, brightness=0, occlusion=0.0, seed=0,
-                           obstacle_ticks=()):
+                           obstacle_ticks=(), signs=None, stop_sign_dwell=5):
     """Corre la mision completa en lazo imagen->imagen y devuelve un trace.
 
     noise_sigma/brightness/occlusion: ruido realista de camara aplicado a CADA
     frame antes de la percepcion (gaussiano, sesgo de brillo, banda ocluida).
     obstacle_ticks: indices de tick con un pato delante (la fusion vision+ToF lo
     detecta y el robot frena; al despejarse reanuda y completa la mision).
+    signs: dict {indice_de_tramo: tag_id de AprilTag} a pintar en la senal de la
+    interseccion; se DETECTA con el detector real (pupil-apriltags) sobre el frame
+    y su accion (stop/yield -> parada obligatoria) entra al cerebro. Requiere las
+    deps de AprilTags; sin `signs` la mision es dep-free.
 
     Devuelve dict: reached, final_node, turns_taken, n_intersections, max_off,
-    n_stops, ticks.
+    n_stops, signs_detected, ticks.
     """
     obstacle_ticks = set(obstacle_ticks)
+    sign_patches = {}                                 # parches de senal precomputados por tramo
+    if signs:
+        from sim_apriltags import make_tag_image
+        for si, tid in signs.items():
+            tag = make_tag_image(tid, scale=10)
+            sign_patches[si] = _np.dstack([tag] * 3)
     rng = _np.random.default_rng(seed)
     route = plan_route(graph, start, goal)
     n_seg = len(route) if route else 0
@@ -60,32 +70,46 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
     ctrl = AutonomousController(graph, start, goal, homography=_H,
                                img_size=(IMG_W, IMG_H), base_speed=base_speed,
                                pid=PID(3.0, 0.0, 0.0, out_limits=(-5.0, 5.0)),
-                               k_heading=0.5)
+                               k_heading=0.5, stop_sign_dwell=stop_sign_dwell)
 
     seg_idx = 0
     s, off, dpsi = 0.0, float(off0), 0.0
     turn_count, pending_turn_done = 0, False
     prev_state, turns_taken, max_off = None, [], abs(off0)
-    n_stops = 0
+    n_stops, signs_detected = 0, []
     reached, ticks = False, 0
 
     for t in range(max_ticks):
         ticks = t + 1
         curvature = SEG_CURVATURES[seg_idx % len(SEG_CURVATURES)] if n_seg else 0.0
 
-        # 1) MUNDO: render del tramo + franja de stop si esta cerca el final.
+        # 1) MUNDO: render del tramo + franja de stop + senal (AprilTag) si esta cerca.
         img = render(off, dpsi, curvature)
         dist_to_line = seg_len - s
-        if 0.0 < dist_to_line <= STOP_LINE_PAINT_M:
+        approaching = 0.0 < dist_to_line <= STOP_LINE_PAINT_M
+        if approaching:
             paint_stop_line(img, dist_to_line)
+        patch = sign_patches.get(seg_idx) if approaching else None
+        if patch is not None:
+            th, tw = patch.shape[:2]
+            x0 = (IMG_W - tw) // 2
+            img[40:40 + th, x0:x0 + tw] = patch       # senal arriba (fuera de la ROI del carril)
         if noise_sigma or brightness or occlusion:
             img = _perturb(img, rng, noise_sigma, brightness, occlusion)
 
-        # 2) PERCEPCION de la franja sobre la imagen real (con homografia -> metros).
+        # 2) PERCEPCION sobre la imagen real: franja (homografia -> metros) y, si hay
+        #    senal en escena, el AprilTag con el detector real -> accion (stop/yield/...).
         sl = detect_stop_line(img, homography=_H)
+        sign_action = None
+        if patch is not None:
+            from sim_apriltags import detect_tag_ids
+            from object_detection.apriltag_policy import select_action
+            sign_action = select_action(detect_tag_ids(img))
+            if sign_action and sign_action not in signs_detected:
+                signs_detected.append(sign_action)
 
         # 3) CEREBRO: conduce con la imagen (lane_error interno) + eventos de franja
-        #    + obstaculo (fusion vision+ToF; distancia metrica con la homografia).
+        #    + obstaculo (fusion vision+ToF) + senal (parada obligatoria por AprilTag).
         obstacle = t in obstacle_ticks
         cmd = ctrl.step({
             "image": img, "img_w": IMG_W, "img_h": IMG_H,
@@ -93,6 +117,7 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
             "turn_done": pending_turn_done,
             "detections": [DUCK] if obstacle else [],
             "tof": 0.10 if obstacle else None,
+            "sign_action": sign_action,
         }, dt)
         st = cmd["state"]
         if st == STOPPED and prev_state != STOPPED:
@@ -126,7 +151,8 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
 
     return {"reached": reached, "final_node": ctrl.loc.current if ctrl.loc else None,
             "turns_taken": turns_taken, "n_intersections": n_seg,
-            "max_off": max_off, "n_stops": n_stops, "ticks": ticks}
+            "max_off": max_off, "n_stops": n_stops,
+            "signs_detected": signs_detected, "ticks": ticks}
 
 
 def _demo():
@@ -151,9 +177,20 @@ def _demo():
     ro = run_mission_image_loop(g, "A", "D", obstacle_ticks=range(20, 40), noise_sigma=25, seed=1)
     print(f"  pato + ruido      : llego={ro['reached']} paradas={ro['n_stops']} "
           f"(freno por fusion vision+ToF, luego reanudo)")
+    rs = r
+    try:
+        from object_detection.apriltag_policy import _db
+        db = _db()
+        stop_id = next(i for i, t in db.items() if t == "stop")
+        yield_id = next(i for i, t in db.items() if t == "yield")
+        rs = run_mission_image_loop(g, "A", "D", signs={0: stop_id, 2: yield_id}, stop_sign_dwell=8)
+        print(f"  AprilTags         : detectadas={rs['signs_detected']} llego={rs['reached']} "
+              f"(parada obligatoria por senal)")
+    except Exception as e:                            # deps de AprilTag ausentes
+        print(f"  AprilTags         : (omitido: {type(e).__name__})")
     print("  OK: el cerebro condujo TODA la mision solo con pixeles "
-          "(carril + franja + giros + ruta), con ruido y frenando ante el pato."
-          if r["reached"] and rn["reached"] and ro["reached"] else "  FALLO")
+          "(carril + franja + giros + ruta + senales), con ruido y frenando ante el pato."
+          if r["reached"] and rn["reached"] and ro["reached"] and rs["reached"] else "  FALLO")
 
 
 if __name__ == "__main__":

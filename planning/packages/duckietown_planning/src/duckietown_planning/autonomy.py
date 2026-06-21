@@ -35,7 +35,7 @@ _TURN_OMEGA = {"left": 1.5, "right": -1.5, "straight": 0.0}
 class AutonomousController:
     def __init__(self, graph=None, start=None, goal=None, base_speed=0.3,
                  pid=None, img_size=(640, 480), homography=None,
-                 stop_line_stop_m=0.10, k_heading=0.5):
+                 stop_line_stop_m=0.10, k_heading=0.5, stop_sign_dwell=5):
         self.graph = graph
         self.goal = goal
         self.base_speed = base_speed
@@ -54,6 +54,8 @@ class AutonomousController:
         self.homography = self._load_homography(homography)
         self.stop_line_stop_m = stop_line_stop_m     # m: distancia a la que se para en la franja
         self.k_heading = k_heading                   # peso del termino de rumbo en el error de carril
+        self.stop_sign_dwell = stop_sign_dwell       # ticks de parada obligatoria ante senal stop/yield
+        self._sign_dwell = 0                          # contador de la parada por senal en curso
         self._last_pose = None                       # ultima pose de carril estimada (telemetria)
 
     @staticmethod
@@ -127,15 +129,22 @@ class AutonomousController:
                 self.route.pop(0)
             self.pid.reset()
             self._turn = None
+            self._sign_dwell = 0                      # reiniciar la parada por senal
 
         # 4) Al llegar a la interseccion, elegir el giro (global con respaldo reactivo).
         #    Callejon sin salida (sin giros validos): no inventar giro fantasma; el
         #    robot se queda detenido en la interseccion (seguro) en vez de descarrilar.
+        #    Una senal de stop/yield (AprilTag) impone una parada obligatoria antes
+        #    de girar: se demora la eleccion del giro hasta cumplir el dwell.
         if state == AT_INTERSECTION and self._turn is None:
-            available = self._available_turns()
-            if available:
-                planned = self.route[0] if self.route else None
-                self._turn = choose_turn(available, planned=planned)
+            sign = obs.get("sign_action")
+            if sign in ("stop", "yield") and self._sign_dwell < self.stop_sign_dwell:
+                self._sign_dwell += 1                 # parada obligatoria: esperar (v=0)
+            else:
+                available = self._available_turns()
+                if available:
+                    planned = self.route[0] if self.route else None
+                    self._turn = choose_turn(available, planned=planned)
 
         # 5) Orden de marcha segun el estado.
         v, omega = 0.0, 0.0
