@@ -36,16 +36,25 @@ class DrivingFSM:
 
     def __init__(self, state=LANE_FOLLOWING):
         self.state = state
+        self._pre_stop = None                # estado previo a una parada de seguridad
 
     def tick(self, obstacle="GO", stop_line=False, at_stop_line=False,
              turn_ready=False, turn_done=False):
         # 1) Seguridad primero: un obstaculo manda parar desde cualquier estado.
         if obstacle == "STOP":
+            if self.state != STOPPED:
+                self._pre_stop = self.state       # recordar de donde veniamos
             self.state = STOPPED
             return self.state
         # 2) Si veniamos de una parada de seguridad y ya se despejo, reanudar.
+        #    Si estabamos detenidos EN la interseccion (la franja ya quedo bajo el
+        #    robot y no se volvera a detectar), volver a AT_INTERSECTION para no
+        #    saltarnos el giro; en cualquier otro caso, reanudar en LANE_FOLLOWING
+        #    (un giro a medias NO se reanuda: se vuelve a detectar la interseccion).
         if self.state == STOPPED:
-            self.state = LANE_FOLLOWING
+            self.state = (AT_INTERSECTION if self._pre_stop == AT_INTERSECTION
+                          else LANE_FOLLOWING)
+            self._pre_stop = None
 
         # 3) Transiciones normales.
         if self.state == LANE_FOLLOWING:

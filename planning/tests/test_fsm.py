@@ -61,3 +61,26 @@ def test_no_salta_etapas():
     fsm = DrivingFSM()
     # estar sobre la linea sin haberla visto antes no debe ir directo a AT_INTERSECTION
     assert fsm.tick(at_stop_line=True) == LANE_FOLLOWING
+
+
+def test_freno_en_interseccion_reanuda_en_interseccion():
+    # Si para por seguridad ESTANDO en la interseccion (linea ya bajo el robot, no
+    # se volvera a detectar), al despejarse debe volver a AT_INTERSECTION para no
+    # saltarse el giro, no a LANE_FOLLOWING.
+    fsm = DrivingFSM()
+    fsm.tick(stop_line=True)                          # APPROACHING
+    fsm.tick(at_stop_line=True)                       # AT_INTERSECTION
+    assert fsm.tick(obstacle="STOP") == STOPPED       # pato cruza
+    assert fsm.tick(obstacle="GO") == AT_INTERSECTION  # se va -> sigue en la interseccion
+    assert fsm.tick(turn_ready=True) == TURNING       # y ejecuta el giro pendiente
+
+
+def test_freno_durante_giro_reanuda_en_lane_following():
+    # En cambio, interrumpir un GIRO a medias si reanuda en LANE_FOLLOWING
+    # (no se reanuda una maniobra parcial; se vuelve a detectar la interseccion).
+    fsm = DrivingFSM()
+    fsm.tick(stop_line=True)
+    fsm.tick(at_stop_line=True)
+    fsm.tick(turn_ready=True)                         # TURNING
+    assert fsm.tick(obstacle="STOP") == STOPPED
+    assert fsm.tick(obstacle="GO") == LANE_FOLLOWING

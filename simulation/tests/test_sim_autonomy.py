@@ -3,7 +3,9 @@ import numpy as np
 
 from duckietown_planning.map_graph import MapGraph
 from duckietown_planning.autonomy import AutonomousController
-from duckietown_planning.fsm import APPROACHING_INTERSECTION, AT_INTERSECTION, TURNING, STOPPED
+from duckietown_planning.fsm import (
+    LANE_FOLLOWING, APPROACHING_INTERSECTION, AT_INTERSECTION, TURNING, STOPPED,
+)
 from object_detection.anti_instagram import correct
 from object_detection.stop_line import detect_stop_line
 from object_detection.ground_projection import (
@@ -38,6 +40,27 @@ def test_mision_simple_llega_al_destino():
     r = run_autonomy(g, "A", "C")
     assert r["reached"] is True
     assert r["final_node"] == "C"
+
+
+def test_obstaculo_en_la_interseccion_no_pierde_el_giro():
+    # Pato que cruza JUSTO cuando el robot esta parado en la interseccion: tras
+    # despejarse, debe ejecutar el giro planeado y no saltarse la interseccion.
+    g = MapGraph(["A", "B"], [{"from": "A", "to": "B", "turn": "left"}])
+    ctrl = AutonomousController(g, "A", "B")
+    duck = {"class_name": "duckie", "bbox": (280, 300, 360, 460), "confidence": 0.9}
+
+    def step(obs):
+        obs.update({"img_w": 640, "img_h": 480, "lane_error": 0.0})
+        return ctrl.step(obs)["state"]
+
+    step({"stop_line": True})                                  # APPROACHING
+    assert step({"stop_line": True, "at_stop_line": True}) == AT_INTERSECTION
+    assert ctrl._turn == "left"
+    step({"stop_line": True, "at_stop_line": True, "detections": [duck], "tof": 0.10})  # STOPPED
+    # El pato se va; la franja ya quedo atras (stop_line=False):
+    assert step({}) == TURNING                                # reanuda en la interseccion y gira
+    assert step({"turn_done": True}) == LANE_FOLLOWING        # completa el giro pendiente
+    assert ctrl.loc.current == "B" and ctrl.reached()         # y avanzo en la ruta (no se la salto)
 
 
 def test_sigue_la_ruta_global():
