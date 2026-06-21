@@ -216,6 +216,29 @@ def test_4way_cede_al_vehiculo_de_la_derecha():
     assert TURNING in libres
 
 
+def test_t_interseccion_cede_a_la_via_principal():
+    # En una T (accion 'yield-main') la via secundaria cede a TODA la via principal:
+    # a un vehiculo por la izquierda O por la derecha (no solo a la derecha como el 4-way).
+    g = MapGraph(["A", "B"], [{"from": "A", "to": "B", "turn": "right"}])
+    bot_izq = {"class_name": "duckiebot", "bbox": (40, 320, 140, 440), "confidence": 0.9}
+
+    def proceder_con(sign, det):
+        ctrl = AutonomousController(g, "A", "B")
+        ctrl.step({"lane_error": 0.0, "stop_line": True})
+        # 6 ticks en la linea con la senal y la deteccion dada
+        estados = [ctrl.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True,
+                              "sign_action": sign, "detections": det})["state"]
+                   for _ in range(6)]
+        return TURNING in estados
+
+    # T + vehiculo a la izquierda: NO procede (cede a la via principal).
+    assert proceder_con("yield-main", [bot_izq]) is False
+    # Pero un 4-way ante el mismo vehiculo a la izquierda SI procede (solo cede a la derecha).
+    assert proceder_con("intersection", [bot_izq]) is True
+    # T con la via principal despejada: procede.
+    assert proceder_con("yield-main", []) is True
+
+
 def test_pipeline_imagen_a_comportamiento():
     # Cadena REAL: imagen con franja roja -> anti-Instagram -> stop_line -> controlador.
     img = np.full((480, 640, 3), 40, dtype=np.uint8)     # escena oscura/sub-expuesta

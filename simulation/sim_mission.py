@@ -33,6 +33,8 @@ DUCK = {"class_name": "duckie", "bbox": (280, 300, 360, 460), "confidence": 0.9}
 SIDE_DUCK = {"class_name": "duckie", "bbox": (500, 320, 590, 450), "confidence": 0.9}
 # Otro Duckiebot con prioridad a la DERECHA en un 4-way (se le cede el paso).
 BOT_RIGHT = {"class_name": "duckiebot", "bbox": (500, 320, 600, 450), "confidence": 0.9}
+# Vehiculo en la via principal por la IZQUIERDA de una T (la via secundaria le cede).
+BOT_LEFT = {"class_name": "duckiebot", "bbox": (40, 320, 140, 450), "confidence": 0.9}
 
 
 def paint_stop_line(img, dist, half_w=0.13):
@@ -45,7 +47,8 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
                            turn_ticks=3, dt=0.05, base_speed=0.3, max_ticks=4000,
                            noise_sigma=0.0, brightness=0, occlusion=0.0, seed=0,
                            obstacle_ticks=(), signs=None, stop_sign_dwell=5,
-                           crossing_duck_ticks=(), priority_vehicle_ticks=()):
+                           crossing_duck_ticks=(), priority_vehicle_ticks=(),
+                           main_road_vehicle_ticks=()):
     """Corre la mision completa en lazo imagen->imagen y devuelve un trace.
 
     noise_sigma/brightness/occlusion: ruido realista de camara aplicado a CADA
@@ -63,6 +66,7 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
     obstacle_ticks = set(obstacle_ticks)
     crossing_duck_ticks = set(crossing_duck_ticks)
     priority_vehicle_ticks = set(priority_vehicle_ticks)
+    main_road_vehicle_ticks = set(main_road_vehicle_ticks)
     sign_patches = {}                                 # parches de senal precomputados por tramo
     if signs:
         from sim_apriltags import make_tag_image
@@ -127,6 +131,8 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
             detections.append(SIDE_DUCK)              # pato cruzando por el lateral
         if t in priority_vehicle_ticks:
             detections.append(BOT_RIGHT)              # vehiculo con prioridad a la derecha (4-way)
+        if t in main_road_vehicle_ticks:
+            detections.append(BOT_LEFT)               # vehiculo en la via principal por la izquierda (T)
         cmd = ctrl.step({
             "image": img, "img_w": IMG_W, "img_h": IMG_H,
             "stop_line": sl["detected"], "stop_line_distance_m": sl["distance_m"],
@@ -213,6 +219,10 @@ def _demo():
         r4 = run_mission_image_loop(g, "A", "D", signs={0: fourway_id}, priority_vehicle_ticks=range(0, 66))
         print(f"  AprilTag 4-WAY    : detectada={r4['signs_detected']} ticks={r4['ticks']} "
               f"(+{r4['ticks']-base['ticks']} vs base: cede su turno al de la derecha)")
+        t_id = next(i for i, t in db.items() if t == "T-intersection")
+        rt = run_mission_image_loop(g, "A", "D", signs={0: t_id}, main_road_vehicle_ticks=range(0, 66))
+        print(f"  AprilTag T-INTER  : detectada={rt['signs_detected']} ticks={rt['ticks']} "
+              f"(+{rt['ticks']-base['ticks']} vs base: cede a la via principal, izq y der)")
     except Exception as e:                            # deps de AprilTag ausentes
         print(f"  AprilTags         : (omitido: {type(e).__name__})")
     print("  OK: el cerebro condujo TODA la mision solo con pixeles "

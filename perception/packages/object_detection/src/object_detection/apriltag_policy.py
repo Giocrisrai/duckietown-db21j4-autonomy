@@ -17,10 +17,10 @@ SIGN_ACTIONS = {
     "yield": "yield",
     "pedestrian": "yield",         # ceder ante peatones
     "duck-crossing": "yield",      # ceder ante patos
-    "4-way-intersect": "intersection",
-    "T-intersection": "intersection",
-    "left-T-intersect": "intersection",
-    "right-T-intersect": "intersection",
+    "4-way-intersect": "intersection",   # 4-way stop: turna por prioridad (cede al de la derecha)
+    "T-intersection": "yield-main",      # via secundaria: cede a TODA la via principal
+    "left-T-intersect": "yield-main",
+    "right-T-intersect": "yield-main",
 }
 
 _db_cache = None

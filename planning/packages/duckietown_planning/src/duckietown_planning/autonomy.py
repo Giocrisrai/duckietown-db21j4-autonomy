@@ -127,6 +127,24 @@ class AutonomousController:
                 return True
         return False
 
+    def _main_road_vehicle_present(self, obs, classes=("duckiebot",),
+                                  central_band=0.3, min_prox=0.4, min_conf=0.25):
+        """True si hay un vehiculo en la VIA PRINCIPAL de una T: a un lado (izquierda
+        o derecha, fuera del carril propio central) y cercano. La via secundaria cede
+        a toda la via principal, no solo al de la derecha."""
+        for d in obs.get("detections", []):
+            if d.get("class_name") not in classes:
+                continue
+            if d.get("confidence", 1.0) < min_conf:
+                continue
+            bbox = d.get("bbox")
+            if bbox is None:
+                continue
+            if (not obstacle_fusion.in_path(bbox, self.img_w, band=central_band)
+                    and obstacle_fusion.bbox_proximity(bbox, self.img_h) >= min_prox):
+                return True
+        return False
+
     def _available_turns(self):
         # Con grafo: los giros REALES del nodo actual ([] si es callejon sin salida).
         # Sin grafo (conduccion libre): "straight" por defecto.
@@ -190,6 +208,8 @@ class AutonomousController:
                 must_wait = decision["action"] != "GO"   # yield: cede solo si hay obstaculo
             elif sign == "intersection":
                 must_wait = self._priority_vehicle_right(obs)   # 4-way: cede al de la derecha
+            elif sign == "yield-main":
+                must_wait = self._main_road_vehicle_present(obs)  # T: cede a la via principal
             else:
                 must_wait = False
             if not must_wait:

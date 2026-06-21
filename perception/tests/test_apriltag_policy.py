@@ -27,6 +27,14 @@ def test_tag_interseccion():
     assert tag_meaning(8) == ("4-way-intersect", "intersection")
 
 
+def test_tag_T_cede_a_via_principal():
+    # Las T ceden a la via principal (accion distinta del 4-way).
+    assert SIGN_ACTIONS["T-intersection"] == "yield-main"
+    assert SIGN_ACTIONS["left-T-intersect"] == "yield-main"
+    assert SIGN_ACTIONS["right-T-intersect"] == "yield-main"
+    assert SIGN_ACTIONS["4-way-intersect"] == "intersection"   # el 4-way sigue distinto
+
+
 def test_tag_peaton_cede():
     assert tag_meaning(12) == ("pedestrian", "yield")
 

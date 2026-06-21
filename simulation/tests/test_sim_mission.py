@@ -150,3 +150,18 @@ def test_4way_turna_por_prioridad_en_el_lazo():
     assert con["turns_taken"] == ["right", "straight", "left"]
     assert con["signs_detected"] == ["intersection"]      # 4-way -> accion intersection
     assert con["ticks"] > base["ticks"]                   # cedio su turno -> espero mas
+
+
+def test_T_interseccion_cede_a_la_via_principal_en_el_lazo():
+    # Senal de T REAL (detectada -> 'yield-main') + un vehiculo en la via principal
+    # por la IZQUIERDA: la via secundaria cede (un 4-way no cederia al de la izquierda).
+    pytest.importorskip("pupil_apriltags")
+    pytest.importorskip("moms_apriltag")
+    g = _mapa_3_intersecciones()
+    base = run_mission_image_loop(g, "A", "D")
+    con = run_mission_image_loop(g, "A", "D", signs={0: _id_de_tipo("T-intersection")},
+                                 main_road_vehicle_ticks=range(0, 66))
+    assert con["reached"] is True
+    assert con["turns_taken"] == ["right", "straight", "left"]
+    assert con["signs_detected"] == ["yield-main"]        # T -> cede a la via principal
+    assert con["ticks"] > base["ticks"]                   # cedio al de la izquierda -> espero mas
