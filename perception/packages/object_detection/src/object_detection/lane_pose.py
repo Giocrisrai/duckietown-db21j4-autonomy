@@ -1,16 +1,21 @@
-"""Pose de carril por PROYECCION A TIERRA: error lateral metrico para el PID.
+"""Pose de carril por PROYECCION A TIERRA: error lateral y rumbo para el PID.
 
 Paridad con el pipeline oficial line_detector -> ground_projection -> lane_filter:
 detecta los pixeles de las lineas del carril (AMARILLA discontinua al centro/izq,
 BLANCA solida a la derecha en la conduccion por la derecha de Duckietown), los
 proyecta al plano del suelo con la homografia (calibracion extrinseca) y estima la
-desviacion lateral REAL del robot respecto al centro del carril, en metros.
+pose REAL del robot respecto al carril:
+  - d   : desviacion lateral respecto al centro del carril, en metros.
+  - phi : rumbo (angulo) del carril respecto al eje de avance del robot, en rad.
 
-Esto reemplaza cualquier proxy de error de carril por una medida metrica: el PID
-recibe `d` en metros y lo lleva a 0 (centrado). Convencion: d > 0 cuando el centro
-del carril queda a la IZQUIERDA del robot (el robot derivo a la derecha) -> con
-kp>0 el control comanda omega>0 (girar a la izquierda) para corregir.
+Esto reemplaza cualquier proxy por medidas metricas. Convenciones (ambas con el
+mismo signo para que el control sume): d > 0 y phi > 0 cuando el carril queda /
+se va hacia la IZQUIERDA del robot -> con ganancias kp>0 el control comanda
+omega>0 (girar a la izquierda) para corregir. El error de direccion combinado
+es d + k*phi (cross-track + heading), como en el lane_controller oficial.
 """
+import math
+
 import numpy as np
 
 from . import ground_projection
@@ -43,23 +48,55 @@ def lane_offset(yellow_y, white_y, half_lane=HALF_LANE):
     return None
 
 
-def _line_lateral(mask, homography, y0):
-    """Posicion lateral media (m) de los pixeles `mask` proyectados al suelo, o None.
+def lane_heading(yellow_slope, white_slope):
+    """Rumbo `phi` (rad) del carril respecto al eje de avance del robot.
+
+    yellow_slope / white_slope: pendiente dy/dx de cada linea en el suelo, o None.
+    Las lineas son paralelas, asi que se promedian las pendientes disponibles y se
+    toma phi = atan(pendiente). phi > 0 = el carril se va a la izquierda al alejarse.
+    """
+    slopes = [s for s in (yellow_slope, white_slope) if s is not None]
+    if not slopes:
+        return None
+    return math.atan(sum(slopes) / len(slopes))
+
+
+def steering_error(d, phi, k_heading=0.5):
+    """Error de direccion combinado: d + k_heading * phi (cross-track + heading).
+
+    None-safe: trata las componentes ausentes como 0; devuelve None si ambas faltan.
+    """
+    if d is None and phi is None:
+        return None
+    return (d or 0.0) + k_heading * (phi or 0.0)
+
+
+def _line_stats(mask, homography, y0):
+    """(posicion lateral media, pendiente dy/dx) de los pixeles `mask` en el suelo.
 
     Solo cuenta puntos por delante del robot (x > 0); ignora los del horizonte.
+    Devuelve (None, None) si no hay puntos; la pendiente es None si no hay variacion
+    suficiente en x para ajustar una recta.
     """
     ys, xs = np.nonzero(mask)
     if len(xs) == 0:
-        return None
-    lat = []
+        return None, None
+    gx, gy = [], []
     for u, v in zip(xs.astype(float), (ys + y0).astype(float)):
         try:
-            gx, gy = ground_projection.pixel_to_ground(homography, u, v)
+            x, y = ground_projection.pixel_to_ground(homography, u, v)
         except ground_projection.GroundProjectionError:
             continue
-        if gx > 0:
-            lat.append(gy)
-    return float(np.mean(lat)) if lat else None
+        if x > 0:
+            gx.append(x)
+            gy.append(y)
+    if not gx:
+        return None, None
+    lateral = float(np.mean(gy))
+    slope = None
+    if len(set(gx)) >= 2:                       # hace falta variacion en x para la recta
+        slope = float(np.polyfit(gx, gy, 1)[0])
+    return lateral, slope
 
 
 def estimate_lane_pose(bgr, homography, half_lane=HALF_LANE, roi_frac=ROI_FRAC):
@@ -68,6 +105,7 @@ def estimate_lane_pose(bgr, homography, half_lane=HALF_LANE, roi_frac=ROI_FRAC):
     Devuelve un dict:
       - detected (bool): se vio al menos una linea proyectable.
       - d (float|None): desviacion lateral metrica (m); 0 = centrado.
+      - phi (float|None): rumbo del carril (rad); 0 = recto delante.
       - yellow_y, white_y (float|None): posicion lateral de cada linea (m).
     """
     import cv2
@@ -76,8 +114,9 @@ def estimate_lane_pose(bgr, homography, half_lane=HALF_LANE, roi_frac=ROI_FRAC):
     hsv = cv2.cvtColor(bgr[y0:, :], cv2.COLOR_BGR2HSV)
     yellow = cv2.inRange(hsv, np.array(YELLOW_LOW), np.array(YELLOW_HIGH))
     white = cv2.inRange(hsv, np.array(WHITE_LOW), np.array(WHITE_HIGH))
-    yellow_y = _line_lateral(yellow, homography, y0)
-    white_y = _line_lateral(white, homography, y0)
+    yellow_y, yellow_slope = _line_stats(yellow, homography, y0)
+    white_y, white_slope = _line_stats(white, homography, y0)
     d = lane_offset(yellow_y, white_y, half_lane)
-    return {"detected": d is not None, "d": d,
+    phi = lane_heading(yellow_slope, white_slope)
+    return {"detected": d is not None, "d": d, "phi": phi,
             "yellow_y": yellow_y, "white_y": white_y}
