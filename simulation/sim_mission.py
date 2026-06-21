@@ -183,9 +183,13 @@ def _demo():
         db = _db()
         stop_id = next(i for i, t in db.items() if t == "stop")
         yield_id = next(i for i, t in db.items() if t == "yield")
-        rs = run_mission_image_loop(g, "A", "D", signs={0: stop_id, 2: yield_id}, stop_sign_dwell=8)
-        print(f"  AprilTags         : detectadas={rs['signs_detected']} llego={rs['reached']} "
-              f"(parada obligatoria por senal)")
+        base = run_mission_image_loop(g, "A", "D")
+        rs = run_mission_image_loop(g, "A", "D", signs={0: stop_id}, stop_sign_dwell=8)
+        ry = run_mission_image_loop(g, "A", "D", signs={0: yield_id})
+        print(f"  AprilTag STOP     : detectada={rs['signs_detected']} ticks={rs['ticks']} "
+              f"(+{rs['ticks']-base['ticks']} vs base: parada obligatoria)")
+        print(f"  AprilTag YIELD    : detectada={ry['signs_detected']} ticks={ry['ticks']} "
+              f"(~base: despejado, cede solo si hay obstaculo)")
     except Exception as e:                            # deps de AprilTag ausentes
         print(f"  AprilTags         : (omitido: {type(e).__name__})")
     print("  OK: el cerebro condujo TODA la mision solo con pixeles "

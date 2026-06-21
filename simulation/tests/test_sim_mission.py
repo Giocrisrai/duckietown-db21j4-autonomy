@@ -101,18 +101,21 @@ def _id_de_tipo(tipo):
     return next(i for i, t in _db().items() if t == tipo)
 
 
-def test_apriltag_de_stop_detectado_en_el_lazo_impone_parada():
-    # AprilTags REALES pintados en las senales y detectados con pupil-apriltags
-    # SOBRE el frame renderizado: el cerebro ve 'stop'/'yield' y hace la parada
-    # obligatoria, alargando la mision frente a la version sin senales.
+def test_apriltag_stop_para_siempre_yield_solo_si_obstaculo():
+    # AprilTags REALES pintados en las senales y detectados con pupil-apriltags SOBRE
+    # el frame renderizado. STOP impone parada obligatoria (mas ticks); YIELD con la
+    # interseccion despejada NO para (procede como sin senal).
     pytest.importorskip("pupil_apriltags")
     pytest.importorskip("moms_apriltag")
     g = _mapa_3_intersecciones()
     base = run_mission_image_loop(g, "A", "D")
-    con = run_mission_image_loop(g, "A", "D",
-                                 signs={0: _id_de_tipo("stop"), 2: _id_de_tipo("yield")},
-                                 stop_sign_dwell=8)
-    assert con["reached"] is True
-    assert con["turns_taken"] == ["right", "straight", "left"]
-    assert con["signs_detected"] == ["stop", "yield"]     # detectadas por vision en el lazo
-    assert con["ticks"] > base["ticks"]                   # las paradas obligatorias alargan la mision
+    stop = run_mission_image_loop(g, "A", "D", signs={0: _id_de_tipo("stop")},
+                                  stop_sign_dwell=8)
+    yld = run_mission_image_loop(g, "A", "D", signs={0: _id_de_tipo("yield")})
+
+    assert stop["reached"] and yld["reached"]
+    assert stop["turns_taken"] == ["right", "straight", "left"]
+    assert stop["signs_detected"] == ["stop"]             # detectada por vision en el lazo
+    assert yld["signs_detected"] == ["yield"]
+    assert stop["ticks"] > base["ticks"]                  # stop SIEMPRE para -> mas ticks
+    assert yld["ticks"] <= base["ticks"] + 2              # yield despejado NO para

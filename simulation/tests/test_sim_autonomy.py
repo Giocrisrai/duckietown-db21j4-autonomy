@@ -131,6 +131,33 @@ def test_senal_de_stop_impone_parada_antes_de_girar():
     assert ticks_hasta_girar(None) <= 1                       # sin senal gira de inmediato
 
 
+def test_yield_cede_solo_si_hay_obstaculo():
+    # Una senal de YIELD cede (espera) solo si hay trafico cruzado (obstaculo);
+    # si la interseccion esta despejada, pasa sin detenerse (a diferencia del stop).
+    g = MapGraph(["A", "B"], [{"from": "A", "to": "B", "turn": "right"}])
+    # Pato a media distancia -> fusion da SLOW (obstaculo presente, no bloquea el frente).
+    duck_slow = {"class_name": "duckie", "bbox": (280, 200, 360, 300), "confidence": 0.9}
+
+    # Yield + obstaculo: cede (se queda en la interseccion sin girar)...
+    c1 = AutonomousController(g, "A", "B")
+    c1.step({"lane_error": 0.0, "stop_line": True})
+    for _ in range(5):
+        st = c1.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True,
+                      "sign_action": "yield", "detections": [duck_slow]})["state"]
+    assert st == AT_INTERSECTION                              # cedio el paso, no giro
+    # ...y al despejarse, procede.
+    estados = [c1.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True,
+                        "sign_action": "yield", "detections": []})["state"] for _ in range(3)]
+    assert TURNING in estados
+
+    # Yield con interseccion despejada desde el inicio: pasa de inmediato (sin dwell).
+    c2 = AutonomousController(g, "A", "B")
+    c2.step({"lane_error": 0.0, "stop_line": True})
+    libres = [c2.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True,
+                       "sign_action": "yield"})["state"] for _ in range(3)]
+    assert TURNING in libres
+
+
 def test_pipeline_imagen_a_comportamiento():
     # Cadena REAL: imagen con franja roja -> anti-Instagram -> stop_line -> controlador.
     img = np.full((480, 640, 3), 40, dtype=np.uint8)     # escena oscura/sub-expuesta

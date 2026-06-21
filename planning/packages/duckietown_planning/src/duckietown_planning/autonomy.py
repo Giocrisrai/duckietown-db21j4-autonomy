@@ -134,13 +134,19 @@ class AutonomousController:
         # 4) Al llegar a la interseccion, elegir el giro (global con respaldo reactivo).
         #    Callejon sin salida (sin giros validos): no inventar giro fantasma; el
         #    robot se queda detenido en la interseccion (seguro) en vez de descarrilar.
-        #    Una senal de stop/yield (AprilTag) impone una parada obligatoria antes
-        #    de girar: se demora la eleccion del giro hasta cumplir el dwell.
+        #    Senal de AprilTag: STOP impone una parada obligatoria (dwell fijo) antes
+        #    de girar; YIELD cede SOLO si hay obstaculo/trafico cruzado (la fusion no
+        #    da GO) y procede en cuanto se despeja; sin senal, gira al llegar.
         if state == AT_INTERSECTION and self._turn is None:
             sign = obs.get("sign_action")
-            if sign in ("stop", "yield") and self._sign_dwell < self.stop_sign_dwell:
-                self._sign_dwell += 1                 # parada obligatoria: esperar (v=0)
+            if sign == "stop" and self._sign_dwell < self.stop_sign_dwell:
+                self._sign_dwell += 1                 # stop: parada obligatoria (v=0)
+                must_wait = True
+            elif sign == "yield":
+                must_wait = decision["action"] != "GO"   # yield: cede solo si hay obstaculo
             else:
+                must_wait = False
+            if not must_wait:
                 available = self._available_turns()
                 if available:
                     planned = self.route[0] if self.route else None
