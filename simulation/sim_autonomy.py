@@ -23,15 +23,19 @@ DUCK = {"class_name": "duckie", "bbox": (280, 300, 360, 460), "confidence": 0.9}
 
 
 def run_autonomy(graph, start, goal, obstacle_ticks=(), segment_len=1.0,
-                 approach_frac=0.3, turn_ticks=3, d0=0.12, dt=0.05, max_ticks=6000):
+                 approach_frac=0.3, turn_ticks=3, d0=0.12, dt=0.05, max_ticks=6000,
+                 homography=None):
     """Corre una mision autonoma de lazo cerrado y devuelve un trace.
 
     obstacle_ticks: iterable de indices de tick en los que hay un pato delante.
+    homography: calibracion extrinseca opcional -> el cerebro decide los obstaculos
+    por distancia metrica real al suelo en vez del proxy del bbox.
     Devuelve dict: reached, ticks, states (set), n_stops, turns_taken,
     max_offset, final_node.
     """
     obstacle_ticks = set(obstacle_ticks)
-    ctrl = AutonomousController(graph, start, goal, img_size=(IMG_W, IMG_H))
+    ctrl = AutonomousController(graph, start, goal, img_size=(IMG_W, IMG_H),
+                               homography=homography)
 
     d, phi, dist = d0, 0.0, 0.0
     turn_counter, pending_turn_done, last_turn = 0, False, None
@@ -111,6 +115,18 @@ def _demo():
     print(f"  ticks            : {r['ticks']}")
     print("  OK: el cerebro siguio carril, paro por el obstaculo, respeto la ruta "
           "en las intersecciones y llego." if r["reached"] else "  FALLO")
+
+    # Misma mision, ahora con calibracion extrinseca: el cerebro decide por
+    # distancia METRICA real al suelo (no por el proxy del bbox).
+    from object_detection.ground_projection import estimate_homography
+    H = estimate_homography(
+        [(180.0, 400.0), (460.0, 400.0), (260.0, 250.0), (380.0, 250.0)],
+        [(0.10, 0.10), (0.10, -0.10), (0.30, 0.10), (0.30, -0.10)],
+    )
+    print("\n== Misma mision con homografia (distancia metrica) ==")
+    rm = run_autonomy(g, "A", "D", obstacle_ticks=range(8, 24), homography=H)
+    print(f"  llego: {rm['reached']}  paradas: {rm['n_stops']}  "
+          f"(el cerebro freno por distancia metrica real al pato, no por el proxy)")
 
 
 if __name__ == "__main__":

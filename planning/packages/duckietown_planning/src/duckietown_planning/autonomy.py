@@ -34,7 +34,8 @@ _TURN_OMEGA = {"left": 1.5, "right": -1.5, "straight": 0.0}
 
 class AutonomousController:
     def __init__(self, graph=None, start=None, goal=None, base_speed=0.3,
-                 pid=None, img_size=(640, 480)):
+                 pid=None, img_size=(640, 480), homography=None,
+                 stop_line_stop_m=0.10):
         self.graph = graph
         self.goal = goal
         self.base_speed = base_speed
@@ -47,6 +48,19 @@ class AutonomousController:
         self.route = plan_route(graph, start, goal) if graph is not None else []
         self.loc = IntersectionLocalizer(graph, start) if graph is not None else None
         self._turn = None                            # giro elegido en la interseccion actual
+        # Calibracion extrinseca: matriz 3x3, o ruta a un YAML que se carga, o None.
+        # Con ella, la fusion de obstaculos y la parada en la franja usan distancia
+        # METRICA real al suelo en vez de proxies.
+        self.homography = self._load_homography(homography)
+        self.stop_line_stop_m = stop_line_stop_m     # m: distancia a la que se para en la franja
+
+    @staticmethod
+    def _load_homography(h):
+        if h is None or not isinstance(h, str):
+            return h                                 # ya es una matriz (o None)
+        from object_detection.ground_projection import (  # import diferido (paquete percepcion)
+            load_extrinsics, homography as _to_matrix)
+        return _to_matrix(load_extrinsics(h))
 
     def reached(self):
         """True si la localizacion indica que llegamos al destino."""
@@ -62,15 +76,23 @@ class AutonomousController:
     def step(self, obs, dt=0.05):
         """Avanza un tick. Devuelve la orden de marcha y la telemetria."""
         # 1) Fusion de obstaculos (vision + ToF) -> GO/SLOW/STOP.
+        #    Con homografia decide por distancia metrica real (no por el proxy del bbox).
         decision = obstacle_fusion.fuse(
-            obs.get("detections", []), obs.get("tof"), self.img_w, self.img_h)
+            obs.get("detections", []), obs.get("tof"), self.img_w, self.img_h,
+            homography=self.homography)
 
         # 2) FSM: la seguridad manda; el giro queda "listo" si ya lo elegimos.
+        #    Con homografia y distancia metrica a la franja, paramos a una distancia fija.
+        at_stop_line = obs.get("at_stop_line", False)
+        if self.homography is not None:
+            d_sl = obs.get("stop_line_distance_m")
+            if d_sl is not None and d_sl <= self.stop_line_stop_m:
+                at_stop_line = True
         prev = self.fsm.state
         state = self.fsm.tick(
             obstacle=decision["action"],
             stop_line=obs.get("stop_line", False),
-            at_stop_line=obs.get("at_stop_line", False),
+            at_stop_line=at_stop_line,
             turn_ready=self._turn is not None,
             turn_done=obs.get("turn_done", False),
         )

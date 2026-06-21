@@ -6,7 +6,21 @@ from duckietown_planning.autonomy import AutonomousController
 from duckietown_planning.fsm import APPROACHING_INTERSECTION, AT_INTERSECTION, TURNING, STOPPED
 from object_detection.anti_instagram import correct
 from object_detection.stop_line import detect_stop_line
+from object_detection.ground_projection import (
+    estimate_homography, ground_to_pixel, save_extrinsics,
+)
 from sim_autonomy import run_autonomy
+
+_HMAT = estimate_homography(
+    [(180.0, 400.0), (460.0, 400.0), (260.0, 250.0), (380.0, 250.0)],
+    [(0.10, 0.10), (0.10, -0.10), (0.30, 0.10), (0.30, -0.10)],
+)
+
+
+def _pato_a(dist_m):
+    """Deteccion de pato cuyo borde inferior (centrado) proyecta a dist_m metros."""
+    u, v = ground_to_pixel(_HMAT, dist_m, 0.0)
+    return {"class_name": "duckie", "bbox": (u - 40, v - 80, u + 40, v), "confidence": 0.9}
 
 
 def _graph_lineal():
@@ -82,3 +96,40 @@ def test_pipeline_imagen_a_comportamiento():
     cmd = ctrl.step({"lane_error": 0.0, "stop_line": det["detected"],
                      "img_w": 640, "img_h": 480})
     assert cmd["state"] == APPROACHING_INTERSECTION      # la imagen disparo el comportamiento
+
+
+def test_cerebro_usa_distancia_metrica_de_obstaculo():
+    # Con homografia, el cerebro decide por distancia REAL: un pato a 0.15 m frena.
+    ctrl = AutonomousController(homography=_HMAT)
+    cmd = ctrl.step({"lane_error": 0.0, "detections": [_pato_a(0.15)],
+                     "img_w": 640, "img_h": 480})
+    assert cmd["state"] == STOPPED
+    assert cmd["decision"]["action"] == "STOP"
+    assert abs(cmd["decision"]["distance_m"] - 0.15) < 1e-3
+    # El mismo pato a 0.60 m no frena.
+    ctrl2 = AutonomousController(homography=_HMAT)
+    cmd2 = ctrl2.step({"lane_error": 0.0, "detections": [_pato_a(0.60)],
+                       "img_w": 640, "img_h": 480})
+    assert cmd2["decision"]["action"] == "GO"
+
+
+def test_cerebro_carga_homografia_desde_yaml(tmp_path):
+    # El cerebro carga la calibracion extrinseca desde un YAML (ruta) y la usa.
+    path = save_extrinsics(tmp_path / "camera_extrinsic" / "robot.yaml",
+                           {"homography": [float(x) for x in _HMAT.flatten()]})
+    ctrl = AutonomousController(homography=str(path))
+    assert ctrl.homography is not None
+    cmd = ctrl.step({"lane_error": 0.0, "detections": [_pato_a(0.15)],
+                     "img_w": 640, "img_h": 480})
+    assert cmd["decision"]["action"] == "STOP"
+
+
+def test_cerebro_para_en_franja_por_distancia_metrica():
+    # Con homografia y distancia metrica a la franja, para a la distancia fijada.
+    ctrl = AutonomousController(homography=_HMAT, stop_line_stop_m=0.10)
+    s1 = ctrl.step({"lane_error": 0.0, "stop_line": True,
+                    "stop_line_distance_m": 0.40, "img_w": 640, "img_h": 480})
+    assert s1["state"] == APPROACHING_INTERSECTION       # ve la franja, aun lejos
+    s2 = ctrl.step({"lane_error": 0.0, "stop_line": True,
+                    "stop_line_distance_m": 0.05, "img_w": 640, "img_h": 480})
+    assert s2["state"] == AT_INTERSECTION                # a 0.05 m (<0.10) se detiene
