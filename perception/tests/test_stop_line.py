@@ -2,6 +2,7 @@
 import numpy as np
 from object_detection.stop_line import red_mask, detect_stop_line
 from object_detection.anti_instagram import correct
+from object_detection.ground_projection import estimate_homography
 
 
 def _frame(h=100, w=60, color=(50, 50, 50)):
@@ -67,6 +68,29 @@ def test_roi_ignora_rojo_superior():
     assert detect_stop_line(img, roi_frac=0.5)["detected"] is False
     # pero si miramos toda la imagen, si
     assert detect_stop_line(img, roi_frac=1.0)["detected"] is True
+
+
+def test_distancia_metrica_con_homografia():
+    # Con homografia, detect_stop_line devuelve distance_m REAL (metros), no solo
+    # el proxy [0..1]: una franja mas abajo en la imagen -> menor distancia metrica.
+    H = estimate_homography(
+        [(180.0, 400.0), (460.0, 400.0), (260.0, 250.0), (380.0, 250.0)],
+        [(0.10, 0.10), (0.10, -0.10), (0.30, 0.10), (0.30, -0.10)],
+    )
+    img_h, img_w = 480, 640
+    cerca = np.full((img_h, img_w, 3), (50, 50, 50), np.uint8)
+    cerca[400:440, :] = (0, 0, 255)              # franja abajo (cerca)
+    lejos = np.full((img_h, img_w, 3), (50, 50, 50), np.uint8)
+    lejos[250:290, :] = (0, 0, 255)              # franja mas arriba (lejos)
+
+    r_cerca = detect_stop_line(cerca, homography=H)
+    r_lejos = detect_stop_line(lejos, homography=H, roi_frac=1.0)
+    assert r_cerca["distance_m"] is not None
+    assert r_cerca["distance_m"] < r_lejos["distance_m"]   # mas abajo = mas cerca
+    assert 0.0 < r_cerca["distance_m"] < 1.0               # metros, escala razonable
+
+    # Sin homografia: distance_m es None (compatibilidad hacia atras).
+    assert detect_stop_line(cerca)["distance_m"] is None
 
 
 def test_sobreexpuesta_recuperable_tras_anti_instagram():

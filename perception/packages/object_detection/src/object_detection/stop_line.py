@@ -32,7 +32,8 @@ def red_mask(bgr):
     return cv2.bitwise_or(m1, m2)
 
 
-def detect_stop_line(bgr, min_fraction=MIN_FRACTION, roi_frac=ROI_FRAC):
+def detect_stop_line(bgr, min_fraction=MIN_FRACTION, roi_frac=ROI_FRAC,
+                     homography=None):
     """Detecta la franja roja de stop en la ROI frontal (inferior) de la imagen.
 
     Devuelve un dict:
@@ -41,6 +42,9 @@ def detect_stop_line(bgr, min_fraction=MIN_FRACTION, roi_frac=ROI_FRAC):
       - centroid_row (float|None): fila media del rojo en la imagen completa.
       - distance (float|None): proxy en [0..1]; 0 = la linea esta justo delante
         (abajo en la imagen), 1 = lejos (arriba). None si no se detecta.
+      - distance_m (float|None): distancia REAL hacia adelante (metros) al
+        centroide de la franja, si se pasa `homography` (calibracion extrinseca);
+        None sin homografia o si el centroide cae en el horizonte.
     `roi_frac` acota la franja inferior considerada (0.5 = mitad de abajo).
     """
     h = bgr.shape[0]
@@ -51,9 +55,19 @@ def detect_stop_line(bgr, min_fraction=MIN_FRACTION, roi_frac=ROI_FRAC):
     red_fraction = float(np.count_nonzero(roi)) / float(roi.size)
     if red_fraction < min_fraction:
         return {"detected": False, "red_fraction": red_fraction,
-                "centroid_row": None, "distance": None}
-    rows = np.nonzero(roi)[0] + y0             # filas (en la imagen completa)
-    centroid_row = float(rows.mean())
+                "centroid_row": None, "distance": None, "distance_m": None}
+    ys, xs = np.nonzero(roi)
+    centroid_row = float((ys + y0).mean())     # fila media (imagen completa)
     distance = float((h - centroid_row) / h)   # abajo -> cerca (0); arriba -> lejos (1)
+    distance_m = None
+    if homography is not None:
+        from . import ground_projection
+        centroid_col = float(xs.mean())
+        try:
+            distance_m = float(ground_projection.forward_distance(
+                homography, centroid_col, centroid_row))
+        except ground_projection.GroundProjectionError:
+            distance_m = None                  # centroide en el horizonte
     return {"detected": True, "red_fraction": red_fraction,
-            "centroid_row": centroid_row, "distance": distance}
+            "centroid_row": centroid_row, "distance": distance,
+            "distance_m": distance_m}
