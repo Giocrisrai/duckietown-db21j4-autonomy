@@ -98,6 +98,37 @@ def load_tile_map(path) -> TileMap:
     return TileMap(data.get("tiles", []))
 
 
+def load_map_objects(path):
+    """Lista de objetos del mapa (clave `objects:`): patos, conos, etc. sobre la pista."""
+    data = yaml.safe_load(Path(path).read_text()) or {}
+    return list(data.get("objects") or [])
+
+
+def object_cell(obj):
+    """Celda (fila, columna) del tile donde esta un objeto. `pos` viene en unidades
+    de tile [columna, fila]; la celda es la parte entera."""
+    col, row = obj["pos"][0], obj["pos"][1]
+    return (int(row), int(col))
+
+
+_OBSTACLE_KINDS = ("duckie", "cone", "duckiebot", "barrier")
+
+
+def track_obstacles(objects, tmap, kinds=("duckie", "cone", "duckiebot")):
+    """Obstaculos que estan SOBRE la pista (en un tile transitable), a esquivar.
+
+    Filtra los objetos del mapa por tipo (pato/cono/duckiebot por defecto) y descarta
+    los que caen fuera de la carretera (barreras de borde, decoracion). Devuelve una
+    lista de (objeto, celda)."""
+    out = []
+    for o in objects:
+        if o.get("kind") in kinds:
+            cell = object_cell(o)
+            if cell in tmap.drivable_cells():
+                out.append((o, cell))
+    return out
+
+
 def tile_route(tmap, start, goal):
     """Ruta tile-a-tile (lista de celdas) de `start` a `goal` por BFS, o None.
 

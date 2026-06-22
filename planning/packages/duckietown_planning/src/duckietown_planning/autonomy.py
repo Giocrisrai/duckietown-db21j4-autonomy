@@ -35,7 +35,8 @@ _TURN_OMEGA = {"left": 1.5, "right": -1.5, "straight": 0.0}
 class AutonomousController:
     def __init__(self, graph=None, start=None, goal=None, base_speed=0.3,
                  pid=None, img_size=(640, 480), homography=None,
-                 stop_line_stop_m=0.10, k_heading=0.5, stop_sign_dwell=5):
+                 stop_line_stop_m=0.10, k_heading=0.5, stop_sign_dwell=5,
+                 avoid_offset=0.0):
         self.graph = graph
         self.goal = goal
         self.base_speed = base_speed
@@ -56,6 +57,8 @@ class AutonomousController:
         self.k_heading = k_heading                   # peso del termino de rumbo en el error de carril
         self.stop_sign_dwell = stop_sign_dwell       # ticks de parada obligatoria ante senal stop/yield
         self._sign_dwell = 0                          # contador de la parada por senal en curso
+        self.avoid_offset = avoid_offset             # m: cuanto se desplaza el carril para rodear un obstaculo
+        self._avoid_active = 0.0                      # desplazamiento de esquive en curso (latch)
         self._last_pose = None                       # ultima pose de carril estimada (telemetria)
 
     @staticmethod
@@ -86,8 +89,41 @@ class AutonomousController:
             err = steering_error(pose["d"], pose["phi"], self.k_heading)
             if err is not None:
                 self._last_pose = pose
-                return err
-        return obs.get("lane_error", 0.0)
+                return err + self._avoid_active        # esquive ya actualizado en step()
+        return obs.get("lane_error", 0.0) + self._avoid_active
+
+    def _avoidance(self, obs, min_prox=0.12, release_prox=0.08, min_conf=0.25, band=0.5):
+        """Desplazamiento lateral (m) que se suma al error de carril para RODEAR un
+        obstaculo en el camino. La maniobra se ENGANCHA hacia el lado con espacio
+        cuando un obstaculo del camino se acerca, y se MANTIENE (latch) mientras siga
+        cerca (aunque al apartarse salga del corredor central), hasta rebasarlo;
+        entonces vuelve al centro. Evita la oscilacion de un esquive puramente reactivo."""
+        if not self.avoid_offset:
+            return 0.0
+        trigger = None                               # (proximidad, centro_x) que dispara
+        near = False                                 # obstaculo aun presente en la zona ancha
+        for d in obs.get("detections", []):
+            if d.get("class_name") not in obstacle_fusion.OBSTACLE_CLASSES:
+                continue
+            if d.get("confidence", 1.0) < min_conf:
+                continue
+            bbox = d.get("bbox")
+            if bbox is None:
+                continue
+            prox = obstacle_fusion.bbox_proximity(bbox, self.img_h)
+            if prox >= release_prox and obstacle_fusion.in_path(bbox, self.img_w, band=1.0):
+                near = True                          # sigue al lado mientras lo rebaso
+            if prox >= min_prox and obstacle_fusion.in_path(bbox, self.img_w, band=band):
+                cx = (bbox[0] + bbox[2]) / 2.0
+                if trigger is None or prox > trigger[0]:
+                    trigger = (prox, cx)
+        if trigger is not None and self._avoid_active == 0.0:
+            # iniciar: obstaculo a la derecha -> apartarse a la izquierda (+); y viceversa.
+            self._avoid_active = (self.avoid_offset if trigger[1] >= self.img_w / 2.0
+                                  else -self.avoid_offset)
+        elif self._avoid_active != 0.0 and not near:
+            self._avoid_active = 0.0                  # rebasado: volver al centro
+        return self._avoid_active
 
     def _crossing_present(self, obs, classes=("duckie", "pedestrian"),
                           band=1.0, min_prox=0.4, min_conf=0.25):
@@ -166,6 +202,14 @@ class AutonomousController:
                 and self._crossing_present(obs)):
             decision = {"action": "STOP", "brake": 1.0, "reason": "cruce",
                         "tof_stop": False, "max_proximity": 0.0, "distance_m": None}
+        # Esquive: actualiza la maniobra de rodeo (latch). Si esta activa, mantiene
+        # velocidad (anula el frenado SLOW) para tener margen de maniobra lateral; el
+        # STOP de emergencia (muy cerca) sigue mandando como ultimo recurso.
+        self._avoidance(obs)
+        if self._avoid_active and decision["action"] == "SLOW":
+            decision = {"action": "SLOW", "brake": 0.4, "reason": "esquive",
+                        "tof_stop": False, "max_proximity": decision["max_proximity"],
+                        "distance_m": decision.get("distance_m")}
 
         # 2) FSM: la seguridad manda; el giro queda "listo" si ya lo elegimos.
         #    Con homografia y distancia metrica a la franja, paramos a una distancia fija.

@@ -105,3 +105,19 @@ def test_grafo_de_intersecciones_desde_tiles():
     # de (0,2) saliendo al ESTE se llega a (2,4) llegando hacia el SUR (la via curva).
     este = [(to, arr) for ex, to, arr in g[(0, 2)] if ex == "E"]
     assert este == [((2, 4), "S")]
+
+
+def test_obstaculos_del_mapa_sobre_la_pista():
+    from duckietown_planning.tile_map import load_map_objects, track_obstacles
+    objs = load_map_objects(_MAPS / "loop_obstacles.yaml")
+    assert {o["kind"] for o in objs} & {"duckie", "cone"}   # el mapa trae obstaculos
+    tm = load_tile_map(_MAPS / "loop_obstacles.yaml")
+    obstaculos = track_obstacles(objs, tm)
+    # Hay varios obstaculos SOBRE la pista (patos/conos), y todos en tiles de pista.
+    assert len(obstaculos) >= 3
+    kinds = {o["kind"] for o, _ in obstaculos}
+    assert "duckie" in kinds and "cone" in kinds
+    for _o, cell in obstaculos:
+        assert cell in tm.drivable_cells()
+    # Las barreras de borde (fuera de pista) quedan excluidas.
+    assert all(o["kind"] != "barrier" for o, _ in obstaculos)

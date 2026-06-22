@@ -299,6 +299,30 @@ def test_replanifica_tras_desvio_por_do_not_enter():
     assert ctrl.reached()                                       # llego al destino pese al desvio
 
 
+def test_esquiva_obstaculo_en_vez_de_solo_frenar():
+    # Con avoid_offset, un obstaculo en el carril (zona de esquive, no de freno en
+    # seco) hace que el robot lo RODEE: sigue avanzando y sesga la direccion al lado
+    # con espacio, en vez de quedarse detenido.
+    obst_der = {"class_name": "duckie", "bbox": (360, 180, 460, 300), "confidence": 0.9}
+
+    ctrl = AutonomousController(avoid_offset=0.12)
+    cmd = ctrl.step({"lane_error": 0.0, "detections": [obst_der], "img_w": 640, "img_h": 480})
+    assert cmd["state"] == LANE_FOLLOWING                 # no se detuvo (SLOW, no STOP)
+    assert cmd["v"] > 0                                    # sigue avanzando (esquivando)
+    assert cmd["omega"] > 0.1                              # gira para rodear (obstaculo a la dcha -> izq)
+
+    # Un obstaculo a la izquierda -> esquiva por la derecha (omega negativo).
+    obst_izq = {"class_name": "duckie", "bbox": (180, 180, 280, 300), "confidence": 0.9}
+    cmd2 = AutonomousController(avoid_offset=0.12).step(
+        {"lane_error": 0.0, "detections": [obst_izq], "img_w": 640, "img_h": 480})
+    assert cmd2["omega"] < -0.1
+
+    # Sin avoid_offset: el mismo obstaculo solo frena (no sesga la direccion).
+    cmd3 = AutonomousController(avoid_offset=0.0).step(
+        {"lane_error": 0.0, "detections": [obst_der], "img_w": 640, "img_h": 480})
+    assert abs(cmd3["omega"]) < 1e-9
+
+
 def test_pipeline_imagen_a_comportamiento():
     # Cadena REAL: imagen con franja roja -> anti-Instagram -> stop_line -> controlador.
     img = np.full((480, 640, 3), 40, dtype=np.uint8)     # escena oscura/sub-expuesta

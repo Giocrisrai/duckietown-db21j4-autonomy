@@ -79,3 +79,15 @@ def test_converge_con_brillo_y_ruido():
     r = run_image_loop(off0=0.06, psi0=0.10, steps=200, brightness=70,
                        noise_sigma=15, seed=4)
     assert abs(r["off"][-1]) < 0.02
+
+
+def test_esquiva_obstaculo_del_mapa_y_continua():
+    # Un obstaculo estatico en la pista: con avoid_offset el robot lo RODEA (se
+    # aparta, lo rebasa y vuelve al centro) y sigue; sin esquive se queda atascado.
+    sin = run_image_loop(off0=0.0, psi0=0.0, steps=500, obstacle=(1.0, 0.0), avoid_offset=0.0)
+    con = run_image_loop(off0=0.0, psi0=0.0, steps=500, obstacle=(1.0, 0.0), avoid_offset=0.22)
+    assert con["s"] > 1.0                         # rodeo el obstaculo y avanzo mas alla
+    assert max(con["off"]) > 0.08                 # se aparto lateralmente para rodearlo
+    assert abs(con["off"][-1]) < 0.03             # volvio al centro tras rebasarlo
+    assert not con["stopped"]                     # no tuvo que frenar en seco
+    assert sin["s"] < 1.0                         # sin esquive: atascado antes del obstaculo
