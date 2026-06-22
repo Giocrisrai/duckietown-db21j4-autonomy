@@ -119,3 +119,12 @@ def test_recorre_el_small_loop_completo():
     assert r["completed"] is True                    # cerro el loop entero
     assert r["max_off"] < 0.06                        # se mantuvo en el carril en las curvas
     assert r["stopped"] is False
+
+
+def test_converge_con_speckle_estructurado():
+    # Ruido ESTRUCTURADO: manchas de color de linea (4px) que SOBREVIVEN la apertura
+    # morfologica y llegan al estimador de pose (a diferencia del gaussiano i.i.d.,
+    # que la apertura borra antes). La mediana robusta las rechaza y el lazo converge.
+    r = run_image_loop(off0=0.06, psi0=0.10, steps=200, speckle=50, seed=2)
+    assert abs(r["off"][-1]) < 0.02
+    assert r["max_abs_off"] < 0.10

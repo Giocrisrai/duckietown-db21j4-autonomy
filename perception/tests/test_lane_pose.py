@@ -108,3 +108,24 @@ def test_estima_rumbo_phi():
     r = estimate_lane_pose(_img_con_carril(0.0, pendiente=math.tan(0.25)), _H, half_lane=HALF)
     assert r["phi"] > 0.05
     assert abs(r["phi"] - 0.25) < 0.08                           # magnitud razonable
+
+
+def _blobs_supervivientes(img, n, seed):
+    # Manchas de color de linea de 4px (sobreviven la apertura 3x3) dispersas en la ROI.
+    rng = np.random.default_rng(seed)
+    for _ in range(n):
+        x, y = int(rng.integers(20, 620)), int(rng.integers(250, 470))
+        col = (0, 200, 200) if rng.random() < 0.5 else (240, 240, 240)
+        img[max(0, y - 2):y + 2, max(0, x - 2):x + 2] = col
+    return img
+
+
+def test_speckle_superviviente_no_sesga_la_pose():
+    # Manchas espurias de color de linea que SOBREVIVEN la apertura y llegan al
+    # estimador: la mediana robusta las rechaza y la pose se mantiene ~centrada.
+    # (Un estimador por MEDIA se sesgaria; la mediana no.)
+    for seed in range(4):
+        img = _blobs_supervivientes(_img_con_carril(0.0), 40, seed)
+        r = estimate_lane_pose(img, _H, half_lane=HALF)
+        assert r["detected"] is True
+        assert abs(r["d"]) < 0.03            # sigue ~centrado pese al ruido estructurado

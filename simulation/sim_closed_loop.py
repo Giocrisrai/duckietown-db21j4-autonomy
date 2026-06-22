@@ -77,10 +77,13 @@ def render(off, dpsi, curvature=0.0):
     return img
 
 
-def _perturb(img, rng, noise_sigma, brightness, occlusion):
-    """Aplica ruido realista de camara: gaussiano, sesgo de brillo y oclusion.
+def _perturb(img, rng, noise_sigma, brightness, occlusion, speckle=0):
+    """Aplica ruido realista de camara: gaussiano, sesgo de brillo, oclusion y speckle.
 
     occlusion: fraccion (0..1) del ancho tapada por una banda vertical (sombra/pato).
+    speckle: nº de manchas ESTRUCTURADAS de color de linea (4 px) en la mitad inferior;
+    a diferencia del ruido gaussiano i.i.d. (que la apertura morfologica borra), estas
+    SOBREVIVEN la apertura y llegan al estimador -> estresan la mediana robusta.
     """
     out = img.astype(np.int16)
     if brightness:
@@ -92,6 +95,11 @@ def _perturb(img, rng, noise_sigma, brightness, occlusion):
         w = int(IMG_W * occlusion)
         x0 = (IMG_W - w) // 2
         out[:, x0:x0 + w] = BG_BGR                  # banda central tapada
+    for _ in range(speckle):
+        x = int(rng.integers(0, IMG_W))
+        y = int(rng.integers(IMG_H // 2, IMG_H))    # mitad inferior (ROI del carril)
+        col = YELLOW_BGR if rng.random() < 0.5 else WHITE_BGR
+        out[max(0, y - 2):y + 2, max(0, x - 2):x + 2] = col   # mancha de ~4 px (sobrevive apertura)
     return out
 
 
@@ -122,7 +130,7 @@ def _obstacle_detection(s, off, obstacle):
 def run_image_loop(off0=0.06, psi0=0.0, steps=200, dt=0.05, base_speed=0.3,
                    kp=3.0, k_heading=0.5, curvature=0.0,
                    noise_sigma=0.0, brightness=0, occlusion=0.0, seed=0,
-                   obstacle=None, avoid_offset=0.0):
+                   obstacle=None, avoid_offset=0.0, speckle=0):
     """Corre el lazo cerrado imagen->imagen y devuelve un trace.
 
     Control PROPORCIONAL puro sobre el error de carril combinado d + k_heading*phi:
@@ -146,8 +154,8 @@ def run_image_loop(off0=0.06, psi0=0.0, steps=200, dt=0.05, base_speed=0.3,
     stopped = False
     for _ in range(steps):
         img = render(off, dpsi, curvature)
-        if noise_sigma or brightness or occlusion:
-            img = _perturb(img, rng, noise_sigma, brightness, occlusion)
+        if noise_sigma or brightness or occlusion or speckle:
+            img = _perturb(img, rng, noise_sigma, brightness, occlusion, speckle)
         det = _obstacle_detection(s, off, obstacle) if obstacle else None
         cmd = ctrl.step({"image": img, "img_w": IMG_W, "img_h": IMG_H,
                          "detections": [det] if det else []}, dt)

@@ -128,3 +128,18 @@ def test_roi_vacia_no_crashea():
     img = np.zeros((1, 4, 3), dtype=np.uint8)
     r = detect_stop_line(img, roi_frac=1e-3)
     assert r["detected"] is False
+
+
+def test_sal_dispara_franja_falsa_sin_apertura_pero_no_con_ella():
+    # Ruido tipo "sal": muchos puntos rojos de 1px. SIN apertura morfologica disparan
+    # una franja de stop FALSA (frac sobre el umbral); CON apertura se borran. Esto
+    # demuestra que la apertura es necesaria, no decorativa (ruido que SI propaga al
+    # umbral, a diferencia del gaussiano i.i.d. que ni siquiera cruza el color rojo).
+    for seed in range(4):
+        rng = np.random.default_rng(seed)
+        img = np.full((200, 200, 3), 60, np.uint8)
+        ys = rng.integers(100, 200, 1200)
+        xs = rng.integers(0, 200, 1200)
+        img[ys, xs] = (0, 0, 255)
+        assert detect_stop_line(img, open_ksize=0)["detected"] is True   # falso positivo sin apertura
+        assert detect_stop_line(img)["detected"] is False                 # la apertura lo limpia
