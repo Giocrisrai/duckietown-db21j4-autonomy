@@ -269,6 +269,9 @@ def _demo():
     rl = run_map_loop(mapa, avoid_offset=0.22)
     print("  [loop]   loop_obstacles ENTERO ({:.1f} m): completo={}, obstaculos rebasados={}, "
           "freno en seco={}".format(rl["total"], rl["completed"], rl["n_passed"], rl["stopped"]))
+    sl = run_map_loop(mapa.parent / "small_loop.yaml", avoid_offset=0.0)
+    print("  [loop]   small_loop ENTERO ({:.1f} m): completo={}, error lateral max {:.3f} m "
+          "(siguio las 4 curvas)".format(sl["total"], sl["completed"], sl["max_off"]))
     print("  OK: el lazo percepcion->control siguio el carril (recto, curva, ruido), esquivo "
           "el obstaculo y recorrio el loop_obstacles ENTERO esquivando todos sus obstaculos."
           if r["converged"] and rc["max_abs_off"] < 0.08 and abs(rn["off"][-1]) < 0.03

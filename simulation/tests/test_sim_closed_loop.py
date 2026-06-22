@@ -107,3 +107,15 @@ def test_recorre_el_loop_completo_esquivando_obstaculos():
 
     sin = run_map_loop(mapa, avoid_offset=0.0)
     assert sin["completed"] is False                  # sin esquive: atascado en un obstaculo
+
+
+def test_recorre_el_small_loop_completo():
+    # Recorre el small_loop ENTERO (3x3 CCW, sin obstaculos) imagen->imagen,
+    # siguiendo sus 4 curvas a la izquierda y manteniendo el carril.
+    from pathlib import Path
+    from sim_closed_loop import run_map_loop
+    mapa = Path(__file__).resolve().parents[2] / "planning" / "maps" / "reference" / "small_loop.yaml"
+    r = run_map_loop(mapa, avoid_offset=0.0)
+    assert r["completed"] is True                    # cerro el loop entero
+    assert r["max_off"] < 0.06                        # se mantuvo en el carril en las curvas
+    assert r["stopped"] is False
