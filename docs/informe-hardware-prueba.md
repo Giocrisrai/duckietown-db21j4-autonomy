@@ -41,6 +41,28 @@ I2C del Jetson funcionan: el problema es el **acople de 40 pines / la HUT**
 (probable común-modo: tierra/alimentación del header intermitente, o un pin
 puenteado que arrastra ambos buses). La batería queda **100% descartada**.
 
+## Re-verificación 2026-06-22 (cámara cambiada + firma I2C confirmada)
+Tras cambiar el cable USB y **el módulo de cámara**, barrido completo por SSH:
+
+- **Cámara: RESUELTA.** El módulo nuevo enumera (`/dev/video0`, `subdev imx219
+  8-0010 bound`) y **captura frames reales** (`nvarguscamerasrc → nvjpegenc`, JPEG
+  1280×720 válido, todos los modos del sensor hasta 3264×2464 disponibles). El
+  `-121` que queda es solo del puerto CSI 7 **vacío**. Pendiente menor: **enfoque**
+  del lente (capturas salen con luz/color pero desenfocadas). Ya **no es bloqueo**.
+- **I2C: firma de "stuck-low" confirmada por dmesg.** `tegra-i2c 7000c000.i2c: i2c
+  transfer timed out addr: 0x3` → el cuelgue ocurre en la **primera dirección del
+  escaneo (0x03)**, antes de poder hablar con ningún dispositivo = **línea SDA/SCL
+  tomada en bajo**, no un periférico puntual. Persiste en **ambos** buses del header.
+- **Resto del hardware, sano:** L4T R32.7.6 (JetPack 4.6.x, Nov-2024); CPU/carga
+  ociosa (load 0.11, MAXN); 2.6 GB RAM libres; disco 16 %; **sin under-voltage/
+  throttle**; MCU del HUT vivo en `/dev/ttyACM0`; red USB up.
+
+> Esta firma queda **codificada** en `diagnostics/i2c_bus.py` (`classify_i2c_fault`
+> → `fault="stuck_low"`, `software_reset_useful=False`,
+> `action="power_cycle_reseat"`). El reset por software del controlador **no libera
+> una línea tomada en bajo**: la acción correcta es **corte total de energía +
+> reasentar/cambiar la HUT** (ver `recommended_steps`).
+
 ## Conclusión
 Una línea I2C (SDA/SCL) del **bus 1** queda **tomada físicamente** de forma
 persistente, independiente de software, energía y montaje. Diagnóstico: **fallo
@@ -56,8 +78,8 @@ intercambio ni alimentación aislada del módulo):
 - Test de localización cuando haya repuesto: con **otra HUT** → si el bus 1 deja
   de colgarse, la HUT vieja estaba fallada; si sigue colgado, el daño está en el
   pin de 40 pines del **módulo Jetson**.
-- **Cámara**: reasentar el flex CSI (contactos al lado correcto, a fondo). El
-  sensor (IMX219) y el overlay están bien; el `-121` es solo contacto.
+- **Cámara**: ✅ **resuelta** con el módulo nuevo (ver re-verificación 2026-06-22);
+  solo resta enfocar el lente. Ya no requiere acción de reparación.
 
 ## Estado del software (sin bloqueo)
 El stack está listo y subido al repo. En cuanto el bus 1 responda y aparezca

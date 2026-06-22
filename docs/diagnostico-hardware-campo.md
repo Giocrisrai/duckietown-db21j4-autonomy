@@ -35,17 +35,31 @@ ls /dev/ttyACM*             # /dev/ttyACM0 -> MCU enumerado
 El MCU/batería usa **USB** (no el header de 40 pines). Si aparece, la HUT tiene
 energía y su enlace USB funciona — pero eso **no** garantiza el I2C de 40 pines.
 
-### 2. ¿El bus se cuelga? Reset del controlador I2C (descarta software)
+### 2. ¿El bus se cuelga? Clasificar ANTES de actuar (leer dmesg)
+La acción correcta depende de **dónde** hace timeout el bus. Leer el dmesg:
 ```bash
-echo 7000c400.i2c | sudo tee /sys/bus/platform/drivers/tegra-i2c/unbind
-sleep 1
-echo 7000c400.i2c | sudo tee /sys/bus/platform/drivers/tegra-i2c/bind
-sleep 1
-sudo timeout 10 i2cdetect -y -r 1
+dmesg | grep -iE 'tegra-i2c.*timed out'
+#   ej: tegra-i2c 7000c400.i2c: i2c transfer timed out addr: 0x3
 ```
-- Si tras el reset el bus responde → era el controlador (software). Resuelto.
-- **Si sigue colgado → la línea SDA/SCL está tomada por algo EXTERNO** (esclavo
-  medio-alimentado, pin en corto, o chip en falla). No es software.
+- **Timeout en `addr: 0x3`** (la primera dirección del escaneo) → la línea SDA/SCL
+  está **tomada en bajo** *antes* de poder hablar con nada. **El reset por software
+  NO sirve** (resetea el controlador, no la línea). Saltar al paso 3 / inspección
+  física. Más aún si cuelgan **ambos** buses del header (común-modo en la HUT).
+- **Timeout en una dirección alta**, o bus colgado **sin** línea de timeout →
+  probable cuelgue del **controlador**; ahí sí vale el reset por software:
+  ```bash
+  echo 7000c400.i2c | sudo tee /sys/bus/platform/drivers/tegra-i2c/unbind
+  sleep 1
+  echo 7000c400.i2c | sudo tee /sys/bus/platform/drivers/tegra-i2c/bind
+  sleep 1
+  sudo timeout 10 i2cdetect -y -r 1
+  ```
+  Si responde → era el controlador (resuelto). Si sigue colgado → línea tomada.
+
+> Esta lógica está **codificada y testeada** en `diagnostics/i2c_bus.py`
+> (`classify_i2c_fault(bus_status, dmesg)` → `fault`, `software_reset_useful`,
+> `action`, `recommended_steps`). Caso `prueba`: `fault="stuck_low"`,
+> `software_reset_useful=False`, `action="power_cycle_reseat"`.
 
 ### 3. ¿Es falta de energía? (descarta alimentación)
 Alimentar con batería cargada **y** fuente externa, reescanear. Si el bus **sigue
@@ -71,7 +85,9 @@ a tierra) o en un **chip I2C del HUT** (PCA9685/IMU/ToF en corto) o **HUT
 defectuosa**. La cámara es IMX219 con `-121` = **flex CSI mal contactado**.
 
 ### Inspección física dirigida (lo único que queda)
-1. Apagar, retirar el Jetson del HUT.
+1. **Corte total de energía**: apagar y **desconectar la batería ~30 s**. Un chip
+   I2C latcheado que mantiene SDA/SCL en bajo solo se libera cortando su
+   alimentación por completo (un reboot caliente no basta). Retirar el Jetson del HUT.
 2. Header de 40 pines con lupa: buscar **pin doblado**, sobre todo en/junto a los
    **pines 3 y 5** (SDA/SCL); verificar que ninguna fila quede corrida (offset).
 3. Reasentar **derecho y a ras**; encender una sola vez y reescanear el bus 1.
