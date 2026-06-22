@@ -237,13 +237,18 @@ def _demo():
 
     # Mision sobre un MAPA DE TILES oficial: ruta y giros derivados de la grilla.
     from pathlib import Path
-    from duckietown_planning.tile_map import load_tile_map, tile_mission_graph
+    from duckietown_planning.tile_map import (load_tile_map, tile_mission_graph,
+                                              tile_tour_graph, intersection_cells)
     ref = Path(__file__).resolve().parents[1] / "planning" / "maps" / "reference" / "4way.yaml"
     tm = load_tile_map(ref)
     tg, ts, tgoal = tile_mission_graph(tm, (1, 2), (2, 1))
     rt2 = run_mission_image_loop(tg, ts, tgoal)
     print(f"  MAPA DE TILES     : 4way.yaml (1,2)->(2,1) llego={rt2['reached']} "
           f"giro={rt2['turns_taken']} (derivado de los tiles, conducido por vision)")
+    gg, gs, ggoal, vis = tile_tour_graph(tm, [(2, 0), (0, 2), (2, 4), (4, 2), (2, 2)])
+    rtour = run_mission_image_loop(gg, gs, ggoal)
+    print(f"  TOUR 4-WAY        : visita {len(set(vis))}/{len(intersection_cells(tm))} "
+          f"intersecciones, llego={rtour['reached']} giros={rtour['turns_taken']}")
     print("  OK: el cerebro condujo TODA la mision solo con pixeles "
           "(carril + franja + giros + ruta + senales), tambien sobre un mapa de tiles real."
           if r["reached"] and rn["reached"] and ro["reached"] and rs["reached"]

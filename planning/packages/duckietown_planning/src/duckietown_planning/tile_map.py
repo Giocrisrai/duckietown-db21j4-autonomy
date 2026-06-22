@@ -81,10 +81,16 @@ class TileMap:
         return set(self._exits)
 
     def neighbors(self, cell):
-        """Vecinos conectados: comparten una salida mutua (ambos abren al otro)."""
+        """Vecinos conectados: comparten una salida mutua (ambos abren al otro).
+
+        Recorre las direcciones en orden fijo (N,S,E,W) para que la navegacion sea
+        DETERMINISTA: las salidas son un set de strings y su iteracion variaria entre
+        procesos (hash randomization), dando rutas BFS distintas en cada ejecucion."""
         r, c = cell
         out = []
-        for d in self._exits.get(cell, ()):
+        for d in ("N", "S", "E", "W"):
+            if d not in self._exits.get(cell, ()):
+                continue
             dr, dc = _DELTA[d]
             nb = (r + dr, c + dc)
             if _OPP[d] in self._exits.get(nb, ()):         # el vecino tambien abre hacia aca
@@ -282,20 +288,48 @@ def loop_cells(tmap, start=None):
     return order if len(order) == len(drivable) else None
 
 
-def tile_route_turns(tmap, start, goal):
-    """Giros (straight/left/right) a ejecutar EN LAS INTERSECCIONES al ir de la celda
-    `start` a `goal` por la ruta de tiles. Los tramos rectos y las curvas se siguen
-    solos (lane-following); aqui solo van las decisiones de interseccion."""
-    route = tile_route(tmap, start, goal)
-    if route is None or len(route) < 3:
+def _path_intersection_turns(tmap, path):
+    """Giros en las intersecciones al recorrer una ruta de celdas (rectas/curvas se
+    siguen solas; aqui solo las decisiones de interseccion)."""
+    if path is None or len(path) < 3:
         return []
     inters = set(intersection_cells(tmap))
-    headings = route_headings(route)
-    turns = []
-    for i in range(1, len(route) - 1):                 # celdas interiores (con llegada y salida)
-        if route[i] in inters:
-            turns.append(relative_turn(headings[i - 1], headings[i]))
-    return turns
+    headings = route_headings(path)
+    return [relative_turn(headings[i - 1], headings[i])
+            for i in range(1, len(path) - 1) if path[i] in inters]
+
+
+def tile_route_turns(tmap, start, goal):
+    """Giros (straight/left/right) a ejecutar EN LAS INTERSECCIONES al ir de la celda
+    `start` a `goal` por la ruta de tiles."""
+    return _path_intersection_turns(tmap, tile_route(tmap, start, goal))
+
+
+def tile_tour_path(tmap, waypoints):
+    """Concatena las rutas de tiles entre `waypoints` en un solo recorrido de celdas
+    (sin duplicar las celdas de empalme). None si algun tramo no tiene ruta."""
+    full = []
+    for a, b in zip(waypoints, waypoints[1:]):
+        leg = tile_route(tmap, a, b)
+        if leg is None:
+            return None
+        full += leg if not full else leg[1:]
+    return full
+
+
+def tile_tour_graph(tmap, waypoints):
+    """Construye un MapGraph lineal de un TOUR que pasa por `waypoints` (p. ej. todas
+    las intersecciones). Devuelve (graph, inicio, fin, intersecciones_visitadas)."""
+    from .map_graph import MapGraph
+    path = tile_tour_path(tmap, waypoints)
+    if path is None:
+        return None
+    turns = _path_intersection_turns(tmap, path)
+    nodes = [f"n{i}" for i in range(len(turns) + 1)]
+    edges = [{"from": nodes[i], "to": nodes[i + 1], "turn": t} for i, t in enumerate(turns)]
+    inters = set(intersection_cells(tmap))
+    visited = [c for c in path if c in inters]
+    return MapGraph(nodes, edges), nodes[0], nodes[-1], visited
 
 
 def tile_mission_graph(tmap, start, goal):

@@ -223,3 +223,19 @@ def test_mision_imagen_a_imagen_sobre_mapa_de_tiles_real():
         assert r["reached"] is True
         assert r["turns_taken"] == [giro]                 # giro derivado del mapa de tiles
         assert r["max_off"] < 0.08                        # siguio el carril por vision
+
+
+def test_tour_visita_todas_las_intersecciones_del_4way():
+    # Un tour sobre el 4way que pasa por las 5 intersecciones, conducido SOLO con
+    # imagenes: los giros se derivan de la grilla de tiles y el cerebro los ejecuta.
+    from duckietown_planning.tile_map import (
+        load_tile_map, tile_tour_graph, intersection_cells)
+    tm = load_tile_map(_TILE_MAPS / "4way.yaml")
+    todas = set(intersection_cells(tm))
+    graph, start, goal, visitadas = tile_tour_graph(
+        tm, [(2, 0), (0, 2), (2, 4), (4, 2), (2, 2)])
+    assert set(visitadas) == todas                   # el tour pasa por las 5 intersecciones
+    r = run_mission_image_loop(graph, start, goal)
+    assert r["reached"] is True                       # completo el tour por vision
+    assert r["turns_taken"] == ["right", "left", "right", "right"]
+    assert r["max_off"] < 0.08
