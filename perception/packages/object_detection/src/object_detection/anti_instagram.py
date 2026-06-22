@@ -29,6 +29,8 @@ def channel_bounds(img, low_pct=LOW_PCT, high_pct=HIGH_PCT):
     img = np.asarray(img, dtype=np.float64)
     if img.ndim != 3:
         raise ValueError("se espera una imagen HxWxC (3 canales)")
+    if img.size == 0:
+        raise ValueError("imagen vacia")
     c = img.shape[2]
     low = np.array([np.percentile(img[:, :, i], low_pct) for i in range(c)])
     high = np.array([np.percentile(img[:, :, i], high_pct) for i in range(c)])

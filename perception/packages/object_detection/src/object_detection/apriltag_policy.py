@@ -57,18 +57,18 @@ def tag_meaning(tag_id, db=None):
     return (tipo, SIGN_ACTIONS.get(tipo))
 
 
-def select_action(tag_ids, db=None, priority=("stop", "yield")):
-    """Accion mas prioritaria entre los tags detectados.
+def select_action(tag_ids, db=None,
+                  priority=("stop", "no-entry", "yield", "yield-main", "intersection")):
+    """Accion mas prioritaria (y DETERMINISTA) entre los tags detectados.
 
-    Las acciones en `priority` mandan (stop sobre yield sobre el resto); si
-    ninguna aplica, devuelve la primera accion no nula; None si nada aplica.
+    Devuelve la accion presente de mayor prioridad segun `priority` (seguridad
+    primero); el resultado NO depende del orden de `tag_ids`. Cualquier accion
+    fuera de `priority` se desempata alfabeticamente. None si ninguna aplica.
     """
-    meanings = [tag_meaning(t, db) for t in tag_ids]
+    acciones = {accion for _t, accion in (tag_meaning(t, db) for t in tag_ids)
+                if accion is not None}
     for accion_prioritaria in priority:
-        for _tipo, accion in meanings:
-            if accion == accion_prioritaria:
-                return accion
-    for _tipo, accion in meanings:
-        if accion is not None:
-            return accion
+        if accion_prioritaria in acciones:
+            return accion_prioritaria
+    return min(acciones) if acciones else None
     return None

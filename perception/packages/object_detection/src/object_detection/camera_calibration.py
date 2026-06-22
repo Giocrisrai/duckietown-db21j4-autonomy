@@ -22,8 +22,12 @@ def validate_intrinsics(data: dict) -> dict:
     if data["image_width"] <= 0 or data["image_height"] <= 0:
         raise CameraCalibrationError("dimensiones de imagen invalidas")
     cm = data["camera_matrix"]
-    if cm.get("rows") != 3 or cm.get("cols") != 3 or len(cm.get("data", [])) != 9:
+    if not isinstance(cm, dict) or cm.get("rows") != 3 or cm.get("cols") != 3 \
+            or len(cm.get("data", [])) != 9:
         raise CameraCalibrationError("camera_matrix debe ser 3x3 (9 valores)")
+    dc = data["distortion_coefficients"]
+    if not isinstance(dc, dict) or len(dc.get("data", [])) not in (4, 5, 8):
+        raise CameraCalibrationError("distortion_coefficients debe tener 4, 5 u 8 valores")
     return data
 
 

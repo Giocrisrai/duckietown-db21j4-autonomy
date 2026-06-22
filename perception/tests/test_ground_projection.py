@@ -79,3 +79,17 @@ def test_save_load_round_trip(tmp_path):
     assert p.exists()
     back = load_extrinsics(p)
     assert np.allclose(homography(back), Hm)
+
+
+def test_estimate_rechaza_puntos_colineales():
+    # 4 puntos imagen colineales -> homografia degenerada -> error tipado, no H singular.
+    with pytest.raises(GroundProjectionError):
+        estimate_homography([(0, 0), (1, 1), (2, 2), (3, 3)], GROUND)
+
+
+def test_validate_extrinsics_no_numerico_lanza_tipado():
+    # Una homography no-secuencia o no-numerica lanza GroundProjectionError (no TypeError).
+    with pytest.raises(GroundProjectionError):
+        validate_extrinsics({"homography": 5})
+    with pytest.raises(GroundProjectionError):
+        validate_extrinsics({"homography": "123456789"})

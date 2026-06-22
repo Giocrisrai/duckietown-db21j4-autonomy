@@ -55,3 +55,19 @@ def test_save_valida_antes_de_escribir(tmp_path):
     with pytest.raises(CameraCalibrationError):
         save_intrinsics(dest, {"image_width": 640})
     assert not dest.exists()
+
+
+def test_validate_rechaza_estructura_invalida():
+    import pytest
+    from object_detection.camera_calibration import validate_intrinsics, CameraCalibrationError
+    base = {"image_width": 640, "image_height": 480,
+            "camera_matrix": {"rows": 3, "cols": 3, "data": [1]*9},
+            "distortion_coefficients": {"rows": 1, "cols": 5, "data": [0]*5}}
+    # camera_matrix como lista (no dict) -> error tipado, no AttributeError
+    bad1 = {**base, "camera_matrix": [1, 2, 3]}
+    with pytest.raises(CameraCalibrationError):
+        validate_intrinsics(bad1)
+    # distortion_coefficients sin 'data' valido -> error tipado, no KeyError en runtime
+    bad2 = {**base, "distortion_coefficients": {}}
+    with pytest.raises(CameraCalibrationError):
+        validate_intrinsics(bad2)

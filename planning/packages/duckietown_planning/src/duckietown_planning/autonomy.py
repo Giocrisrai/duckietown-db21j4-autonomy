@@ -249,9 +249,13 @@ class AutonomousController:
         #    da GO) y procede en cuanto se despeja; sin senal, gira al llegar.
         if state == AT_INTERSECTION and self._turn is None:
             sign = obs.get("sign_action")
-            if sign == "stop" and self._sign_dwell < self.stop_sign_dwell:
-                self._sign_dwell += 1                 # stop: parada obligatoria (v=0)
-                must_wait = True
+            if sign == "stop":
+                # stop: parada obligatoria (dwell) Y, como un 4-way stop real, ceder
+                # al trafico cruzado (no arrancar si hay un vehiculo con prioridad).
+                if self._sign_dwell < self.stop_sign_dwell:
+                    self._sign_dwell += 1
+                must_wait = (self._sign_dwell < self.stop_sign_dwell
+                             or self._priority_vehicle_right(obs))
             elif sign == "yield":
                 must_wait = decision["action"] != "GO"   # yield: cede solo si hay obstaculo
             elif sign == "intersection":

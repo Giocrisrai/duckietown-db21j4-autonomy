@@ -28,6 +28,34 @@ def test_exits_recta_y_curva():
     assert tile_exits("asphalt", None) == set()             # no transitable
 
 
+def test_curve_right_todas_las_orientaciones():
+    # curve_right NO tiene ejemplo en los mapas de referencia salvo /N (loop_obstacles).
+    # Las 4 orientaciones deben ser el espejo E<->W de curve_left (rotacion 90 CW
+    # anclada en /N={E,S}). Sin esto, /E y /W quedaban mal y rompian loops CW.
+    assert tile_exits("curve_right", "N") == {"E", "S"}   # validado por loop_obstacles (4,4)
+    assert tile_exits("curve_right", "E") == {"S", "W"}
+    assert tile_exits("curve_right", "S") == {"N", "W"}
+    assert tile_exits("curve_right", "W") == {"E", "N"}
+    # Consistencia rotacional: cada orientacion = la anterior rotada 90 CW.
+    rot = {"N": "E", "E": "S", "S": "W", "W": "N"}
+    for o in "NESW":
+        rotada = {rot[s] for s in tile_exits("curve_right", o)}
+        assert rotada == tile_exits("curve_right", rot[o])
+
+
+def test_loop_clockwise_con_curve_right_cierra():
+    # Un loop 3x3 en sentido HORARIO usa curve_right en las 4 esquinas; debe cerrar
+    # como ciclo (cada celda de carretera con exactamente 2 vecinos).
+    tm = TileMap([
+        ["curve_right/N", "straight/W", "curve_right/E"],
+        ["straight/S", "asphalt", "straight/N"],
+        ["curve_right/W", "straight/E", "curve_right/S"],
+    ])
+    assert len(tm.drivable_cells()) == 8
+    for cell in tm.drivable_cells():
+        assert len(tm.neighbors(cell)) == 2
+
+
 def test_small_loop_es_un_ciclo():
     tm = load_tile_map(_MAPS / "small_loop.yaml")
     drivable = tm.drivable_cells()

@@ -121,3 +121,10 @@ def test_franja_real_bajo_ruido_se_detecta():
     img[150:185, :] = (0, 0, 255)                         # franja roja solida abajo
     ruidosa = np.clip(img.astype(np.int16) + rng.normal(0, 30, img.shape), 0, 255).astype(np.uint8)
     assert detect_stop_line(ruidosa)["detected"] is True
+
+
+def test_roi_vacia_no_crashea():
+    # Imagen minuscula donde la ROI inferior queda vacia: no debe lanzar ZeroDivision.
+    img = np.zeros((1, 4, 3), dtype=np.uint8)
+    r = detect_stop_line(img, roi_frac=1e-3)
+    assert r["detected"] is False

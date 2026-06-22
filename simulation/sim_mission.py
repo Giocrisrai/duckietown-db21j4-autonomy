@@ -232,7 +232,7 @@ def _demo():
         rd = run_mission_image_loop(gdne, "A", "B", signs={0: dne_id}, forbidden_turns={0: "straight"})
         print(f"  AprilTag NO-ENTRY : detectada={rd['signs_detected']} giro={rd['turns_taken']} "
               f"(prohibio 'straight', tomo la alternativa)")
-    except Exception as e:                            # deps de AprilTag ausentes
+    except ImportError as e:                          # deps de AprilTag ausentes
         print(f"  AprilTags         : (omitido: {type(e).__name__})")
 
     # Mision sobre un MAPA DE TILES oficial: ruta y giros derivados de la grilla.

@@ -25,8 +25,10 @@ _OPP = {"N": "S", "S": "N", "E": "W", "W": "E"}
 
 # Curva-izquierda: conecta dos lados perpendiculares (derivado del small_loop CCW).
 _CURVE_LEFT = {"W": {"E", "S"}, "N": {"S", "W"}, "S": {"N", "E"}, "E": {"N", "W"}}
-# Curva-derecha: espejo E<->W de la curva-izquierda.
-_CURVE_RIGHT = {"W": {"W", "S"}, "N": {"S", "E"}, "S": {"N", "W"}, "E": {"N", "E"}}
+# Curva-derecha: espejo E<->W de la curva-izquierda (= rotacion 90 CW anclada en
+# /N={E,S}, validado por loop_obstacles). curve_left/X y curve_right/X NO abren los
+# mismos lados: la orientacion /X significa cosas distintas para izquierda y derecha.
+_CURVE_RIGHT = {"N": {"E", "S"}, "E": {"S", "W"}, "S": {"N", "W"}, "W": {"E", "N"}}
 # T (3-way): conecta 3 lados; falta el indicado por la orientacion (derivado del 4way).
 _3WAY_MISSING = {"W": "N", "N": "E", "E": "S", "S": "W"}
 
@@ -115,9 +117,6 @@ def object_cell(obj):
     de tile [columna, fila]; la celda es la parte entera."""
     col, row = obj["pos"][0], obj["pos"][1]
     return (int(row), int(col))
-
-
-_OBSTACLE_KINDS = ("duckie", "cone", "duckiebot", "barrier")
 
 
 def track_obstacles(objects, tmap, kinds=("duckie", "cone", "duckiebot")):

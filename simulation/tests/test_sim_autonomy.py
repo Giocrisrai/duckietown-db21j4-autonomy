@@ -80,7 +80,7 @@ def test_pasa_por_los_estados_de_interseccion():
 def test_se_mantiene_en_el_carril():
     g = _graph_lineal()
     r = run_autonomy(g, "A", "C")
-    assert r["max_offset"] < 0.5            # el PID mantiene el error lateral acotado
+    assert r["max_offset"] < 0.18           # el PID mantiene el error lateral acotado (real ~0.12)
 
 
 def test_frena_ante_obstaculo_y_aun_asi_llega():
@@ -129,6 +129,24 @@ def test_senal_de_stop_impone_parada_antes_de_girar():
 
     assert ticks_hasta_girar("stop") >= 4                     # parada obligatoria por la senal
     assert ticks_hasta_girar(None) <= 1                       # sin senal gira de inmediato
+
+
+def test_stop_cede_a_trafico_cruzado():
+    # Como un 4-way stop real: tras el dwell, el robot NO arranca si hay un vehiculo
+    # con prioridad a la derecha; procede cuando se despeja.
+    g = MapGraph(["A", "B"], [{"from": "A", "to": "B", "turn": "right"}])
+    bot_der = {"class_name": "duckiebot", "bbox": (500, 320, 600, 450), "confidence": 0.9}
+    ctrl = AutonomousController(g, "A", "B", stop_sign_dwell=2)
+    ctrl.step({"lane_error": 0.0, "stop_line": True})         # APPROACHING
+    # En la linea con stop + vehiculo cruzando: aun tras el dwell, espera.
+    estados = [ctrl.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True,
+                          "sign_action": "stop", "detections": [bot_der]})["state"]
+               for _ in range(6)]
+    assert TURNING not in estados                             # no arranco con trafico cruzado
+    # El vehiculo pasa -> procede.
+    libres = [ctrl.step({"lane_error": 0.0, "stop_line": True, "at_stop_line": True,
+                         "sign_action": "stop"})["state"] for _ in range(3)]
+    assert TURNING in libres
 
 
 def test_yield_cede_solo_si_hay_obstaculo():

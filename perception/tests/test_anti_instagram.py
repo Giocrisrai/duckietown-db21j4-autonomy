@@ -75,3 +75,9 @@ def test_transform_reutilizable_es_consistente():
     a = apply_transform(img, scale, shift)
     b = correct(img)
     assert np.array_equal(a, b)
+
+
+def test_imagen_vacia_lanza_valueerror():
+    import pytest
+    with pytest.raises(ValueError):
+        channel_bounds(np.zeros((0, 0, 3), dtype=np.uint8))

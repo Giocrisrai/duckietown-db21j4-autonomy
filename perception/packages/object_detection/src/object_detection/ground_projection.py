@@ -34,9 +34,13 @@ def validate_extrinsics(data: dict) -> dict:
     if not data or "homography" not in data:
         raise GroundProjectionError("falta 'homography'")
     h = data["homography"]
-    if len(h) != 9:
+    try:
+        H = np.array(h, dtype=np.float64)
+    except (TypeError, ValueError):
+        raise GroundProjectionError("homography debe ser una lista de 9 numeros")
+    if H.size != 9:
         raise GroundProjectionError("homography debe tener 9 valores (3x3)")
-    H = np.array(h, dtype=np.float64).reshape(3, 3)
+    H = H.reshape(3, 3)
     if not np.isfinite(H).all():
         raise GroundProjectionError("homography con valores no finitos")
     if abs(np.linalg.det(H)) < _DET_EPS:
@@ -76,8 +80,8 @@ def estimate_homography(image_points, ground_points) -> np.ndarray:
     if src.shape[0] < 4:
         raise GroundProjectionError("se requieren >=4 correspondencias")
     H, _ = cv2.findHomography(src, dst, method=0)
-    if H is None:
-        raise GroundProjectionError("no se pudo estimar la homografia")
+    if H is None or abs(np.linalg.det(H)) < _DET_EPS:
+        raise GroundProjectionError("homografia no estimable (puntos colineales/degenerados)")
     return H
 
 

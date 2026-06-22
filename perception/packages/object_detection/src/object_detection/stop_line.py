@@ -62,7 +62,7 @@ def detect_stop_line(bgr, min_fraction=MIN_FRACTION, roi_frac=ROI_FRAC,
     y0 = int(round(h * (1.0 - roi_frac)))     # inicio de la ROI inferior
     mask = red_mask(bgr, open_ksize=open_ksize)
     roi = mask[y0:, :]
-    red_fraction = float(np.count_nonzero(roi)) / float(roi.size)
+    red_fraction = float(np.count_nonzero(roi)) / float(roi.size) if roi.size else 0.0
     if red_fraction < min_fraction:
         return {"detected": False, "red_fraction": red_fraction,
                 "centroid_row": None, "distance": None, "distance_m": None}

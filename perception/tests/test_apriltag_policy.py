@@ -70,3 +70,13 @@ def test_select_fallback_interseccion():
 
 def test_select_sin_conocidos():
     assert select_action([999999]) is None
+
+
+def test_select_action_es_determinista_por_contenido():
+    # El resultado no debe depender del ORDEN de los tags: 4-way (intersection) +
+    # T (yield-main) -> siempre la misma accion sin importar el orden de deteccion.
+    a = select_action([8, 11])      # 8=4-way, 11=T-intersection
+    b = select_action([11, 8])
+    assert a == b
+    # stop manda sobre cualquier otra, en cualquier orden.
+    assert select_action([8, 1]) == "stop" == select_action([1, 8])
