@@ -20,7 +20,8 @@ import math
 
 import numpy as np
 
-from object_detection.ground_projection import estimate_homography, ground_to_pixel
+from object_detection.ground_projection import (
+    estimate_homography, ground_to_pixel, GroundProjectionError)
 from object_detection.lane_pose import HALF_LANE
 from duckietown_planning.autonomy import AutonomousController
 from duckietown_planning.fsm import STOPPED
@@ -94,25 +95,28 @@ def _perturb(img, rng, noise_sigma, brightness, occlusion):
     return out
 
 
-_OBST_RANGE = 0.9        # m: distancia a la que el obstaculo del mapa entra en vision
-_LAT_PX = IMG_W * 0.40 / 0.10  # px por metro lateral (parallax: al apartarse, el obstaculo cercano se corre)
+_OBST_RANGE = 1.0        # m: distancia (suelo) a la que el obstaculo entra en vision
 
 
 def _obstacle_detection(s, off, obstacle):
     """Deteccion sintetica del obstaculo del mapa segun la pose del robot, o None.
 
     obstacle = (s_obs, y_obs): distancia longitudinal (m) y posicion lateral (m,
-    +izquierda) del obstaculo. El bbox refleja su cercania (mas bajo/abajo = mas
-    cerca) y su posicion lateral aparente (parallax al apartarse el robot)."""
+    +izquierda) del obstaculo. Proyecta su punto de contacto con el suelo a pixel
+    con la MISMA homografia `_H` que el resto del modulo (parallax y cercania
+    fisicamente coherentes, sin constantes de camara ad-hoc)."""
     s_obs, y_obs = obstacle
-    d_long = s_obs - s
-    if not (0.0 < d_long <= _OBST_RANGE):
+    x_rel, y_rel = s_obs - s, y_obs - off            # posicion del obstaculo en el frame del robot
+    if not (0.0 < x_rel <= _OBST_RANGE):
         return None
-    prox = 1.0 - d_long / _OBST_RANGE                # cerca -> ~1
-    y2 = max(1.0, prox * IMG_H)
-    cx = IMG_W / 2.0 - (y_obs - off) * _LAT_PX       # +izquierda -> x menor
-    return {"class_name": "duckie", "confidence": 0.9,
-            "bbox": (cx - 45, y2 - 90, cx + 45, y2)}
+    try:
+        cx, y2 = ground_to_pixel(_H, x_rel, y_rel)   # punto de contacto con el suelo -> pixel
+    except GroundProjectionError:
+        return None
+    if not (0.0 <= y2 <= IMG_H):                     # fuera de cuadro / sobre el horizonte
+        return None
+    return {"class_name": "duckie", "confidence": 0.9,    # un pato es angosto (±28 px)
+            "bbox": (cx - 28, y2 - 70, cx + 28, y2)}
 
 
 def run_image_loop(off0=0.06, psi0=0.0, steps=200, dt=0.05, base_speed=0.3,
@@ -260,13 +264,13 @@ def _demo():
     print("  [ruido]  sigma=25 + oclusion 12%: desviacion final {:+.3f} m (robusto)".format(
         rn["off"][-1]))
     rsin = run_image_loop(off0=0.0, psi0=0.0, steps=500, obstacle=(1.0, 0.0), avoid_offset=0.0)
-    ro = run_image_loop(off0=0.0, psi0=0.0, steps=500, obstacle=(1.0, 0.0), avoid_offset=0.22)
+    ro = run_image_loop(off0=0.0, psi0=0.0, steps=500, obstacle=(1.0, 0.0), avoid_offset=0.38)
     print("  [esquive] obstaculo en pista: SIN esquive avanza {:.2f} m (atascado); "
           "CON esquive rodea (pico {:+.3f} m) y avanza {:.2f} m".format(
               rsin["s"], max(ro["off"]), ro["s"]))
     from pathlib import Path
     mapa = Path(__file__).resolve().parents[1] / "planning" / "maps" / "reference" / "loop_obstacles.yaml"
-    rl = run_map_loop(mapa, avoid_offset=0.22)
+    rl = run_map_loop(mapa, avoid_offset=0.38)
     print("  [loop]   loop_obstacles ENTERO ({:.1f} m): completo={}, obstaculos rebasados={}, "
           "freno en seco={}".format(rl["total"], rl["completed"], rl["n_passed"], rl["stopped"]))
     sl = run_map_loop(mapa.parent / "small_loop.yaml", avoid_offset=0.0)

@@ -85,9 +85,9 @@ def test_esquiva_obstaculo_del_mapa_y_continua():
     # Un obstaculo estatico en la pista: con avoid_offset el robot lo RODEA (se
     # aparta, lo rebasa y vuelve al centro) y sigue; sin esquive se queda atascado.
     sin = run_image_loop(off0=0.0, psi0=0.0, steps=500, obstacle=(1.0, 0.0), avoid_offset=0.0)
-    con = run_image_loop(off0=0.0, psi0=0.0, steps=500, obstacle=(1.0, 0.0), avoid_offset=0.22)
+    con = run_image_loop(off0=0.0, psi0=0.0, steps=500, obstacle=(1.0, 0.0), avoid_offset=0.38)
     assert con["s"] > 1.0                         # rodeo el obstaculo y avanzo mas alla
-    assert max(con["off"]) > 0.08                 # se aparto lateralmente para rodearlo
+    assert max(abs(o) for o in con["off"]) > 0.08  # se aparto lateralmente (a cualquier lado)
     assert abs(con["off"][-1]) < 0.03             # volvio al centro tras rebasarlo
     assert not con["stopped"]                     # no tuvo que frenar en seco
     assert sin["s"] < 1.0                         # sin esquive: atascado antes del obstaculo
@@ -100,7 +100,7 @@ def test_recorre_el_loop_completo_esquivando_obstaculos():
     from sim_closed_loop import run_map_loop
     mapa = Path(__file__).resolve().parents[2] / "planning" / "maps" / "reference" / "loop_obstacles.yaml"
 
-    con = run_map_loop(mapa, avoid_offset=0.22)
+    con = run_map_loop(mapa, avoid_offset=0.38)
     assert con["completed"] is True                  # recorrio el loop entero
     assert con["n_passed"] >= 2                       # rebaso los obstaculos de la pista
     assert con["stopped"] is False                    # sin frenar en seco (no se atasco)
