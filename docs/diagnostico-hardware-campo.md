@@ -60,6 +60,10 @@ dmesg | grep -iE 'tegra-i2c.*timed out'
 > (`classify_i2c_fault(bus_status, dmesg)` → `fault`, `software_reset_useful`,
 > `action`, `recommended_steps`). Caso `prueba`: `fault="stuck_low"`,
 > `software_reset_useful=False`, `action="power_cycle_reseat"`.
+>
+> **Atajo (un comando, en el robot):** `sudo python3 tools/diagnose_i2c.py`
+> escanea ambos buses del header (con `timeout` por si cuelgan), lee `dmesg` y
+> imprime el veredicto + pasos automáticamente.
 
 ### 3. ¿Es falta de energía? (descarta alimentación)
 Alimentar con batería cargada **y** fuente externa, reescanear. Si el bus **sigue

@@ -40,7 +40,7 @@ Validar:
 ```bash
 # en el robot (host Jetson)
 i2cdetect -y -r 1            # deben aparecer 0x68 / 0x29 / 0x3c segun lo conectado
-python3 tools/test_sensors.py --bus 1
+sudo python3 tools/test_sensors.py 1    # bus posicional (por defecto 1)
 ```
 
 ## 2. Motores — driver externo (drop-in en 0x60)

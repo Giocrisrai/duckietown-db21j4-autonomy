@@ -9,6 +9,7 @@ from i2c_bus import (
     parse_timeout_addr,
     classify_i2c_fault,
     recommended_steps,
+    status_from_returncode,
     FIRST_SCAN_ADDR,
 )
 
@@ -78,3 +79,10 @@ def test_recommended_steps_controlador_sugiere_reset():
     diag = classify_i2c_fault({0: "ok", 1: "hung"}, [])
     texto = " ".join(recommended_steps(diag)).lower()
     assert "reset" in texto and "unbind" in texto
+
+
+def test_status_from_returncode():
+    """i2cdetect: rc 0 = bus respondio; rc!=0 (124 timeout) = colgado."""
+    assert status_from_returncode(0) == "ok"
+    assert status_from_returncode(124) == "hung"     # timeout (coreutils)
+    assert status_from_returncode(1) == "hung"

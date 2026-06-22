@@ -25,6 +25,13 @@ HEADER_BUSES = (0, 1)
 _TIMEOUT_RE = re.compile(r"i2c transfer timed out addr:\s*0x([0-9a-fA-F]+)")
 
 
+def status_from_returncode(rc):
+    """Mapea el exit code de `i2cdetect -y -r N` a estado de bus.
+    rc 0 = el bus respondio ('ok'); cualquier otro (124 = timeout de coreutils,
+    o error) = colgado ('hung')."""
+    return "ok" if rc == 0 else "hung"
+
+
 def parse_timeout_addr(dmesg_lines):
     """Devuelve la direccion (int) del ultimo 'i2c transfer timed out addr: 0xNN'
     en el dmesg, o None si no hay ninguno."""
