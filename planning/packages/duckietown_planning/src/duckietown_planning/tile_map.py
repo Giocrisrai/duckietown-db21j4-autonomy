@@ -164,6 +164,75 @@ def route_turns(route):
     return turns
 
 
+_INTERSECTION_TYPES = ("3way_left", "3way_right", "4way")
+
+
+def relative_turn(entry_heading, exit_dir):
+    """Giro relativo (straight/left/right/u-turn) al entrar con `entry_heading` y
+    salir hacia `exit_dir` (ambos rumbos de la brujula)."""
+    if entry_heading == exit_dir:
+        return "straight"
+    if _LEFT[entry_heading] == exit_dir:
+        return "left"
+    if _RIGHT[entry_heading] == exit_dir:
+        return "right"
+    return "u-turn"
+
+
+def intersection_cells(tmap):
+    """Celdas (r,c) que son intersecciones (3way / 4way)."""
+    out = []
+    for (r, c) in tmap.drivable_cells():
+        ttype, _ = parse_tile(tmap.grid[r][c])
+        if ttype in _INTERSECTION_TYPES:
+            out.append((r, c))
+    return out
+
+
+def _follow_to_intersection(tmap, intersection, direction, intersections):
+    """Sigue la carretera desde `intersection` saliendo hacia `direction` por los
+    tramos (rectas/curvas) hasta la siguiente interseccion. Devuelve (celda_destino,
+    rumbo_de_llegada) o None si la salida no lleva a ninguna interseccion."""
+    dr, dc = _DELTA[direction]
+    cur = (intersection[0] + dr, intersection[1] + dc)
+    came_from = _OPP[direction]
+    heading = direction
+    seen = {intersection}
+    while True:
+        ex = tmap._exits.get(cur)
+        if not ex or came_from not in ex:
+            return None                                # se salio de la carretera
+        if cur in intersections:
+            return (cur, heading)
+        cont = [d for d in ex if d != came_from]       # un tramo simple tiene 1 continuacion
+        if len(cont) != 1 or cur in seen:
+            return None
+        seen.add(cur)
+        heading = cont[0]
+        dr, dc = _DELTA[heading]
+        cur = (cur[0] + dr, cur[1] + dc)
+        came_from = _OPP[heading]
+
+
+def intersection_graph(tmap):
+    """Deriva el grafo de intersecciones desde la grilla de tiles.
+
+    Devuelve {celda_interseccion: [(salida, celda_destino, rumbo_de_llegada), ...]}.
+    Las aristas son DIRECCIONALES con el rumbo de salida y el de llegada porque el
+    giro (left/right/straight) en una interseccion depende de por donde se entra
+    (relative_turn(rumbo_de_llegada_previo, salida))."""
+    intersections = set(intersection_cells(tmap))
+    graph = {}
+    for cell in intersections:
+        edges = []
+        for d in sorted(tmap._exits.get(cell, ())):
+            res = _follow_to_intersection(tmap, cell, d, intersections)
+            if res is not None:
+                edges.append((d, res[0], res[1]))
+        graph[cell] = edges
+    return graph
+
+
 def _demo():
     """Navega un mapa de tiles de referencia completo y narra la ruta."""
     ref = Path(__file__).resolve().parents[4] / "maps" / "reference" / "4way.yaml"
@@ -175,7 +244,15 @@ def _demo():
     print(f"  ruta {start} -> {goal} : {len(route)} tiles")
     print(f"  celdas             : {route}")
     print(f"  giros a ejecutar   : {route_turns(route)}")
-    print("  OK: planifico una ruta atravesando el mapa de tiles, con sus giros."
+
+    g = intersection_graph(tm)
+    print(f"  intersecciones     : {len(g)}  (3way/4way derivadas de los tiles)")
+    aristas = g[(2, 2)]
+    print(f"  desde el 4way (2,2): " + ", ".join(f"{ex}->{to}" for ex, to, _ in aristas))
+    # Ejemplo de giro: llegando al 4way hacia el SUR y saliendo al ESTE -> izquierda.
+    print(f"  giro ejemplo       : llego al 4way hacia S, salgo al E -> "
+          f"{relative_turn('S', 'E')}")
+    print("  OK: planifico ruta de tiles (con giros) y derivo el grafo de intersecciones."
           if route and route[-1] == goal else "  FALLO")
 
 

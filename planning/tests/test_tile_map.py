@@ -6,6 +6,7 @@ import pytest
 from duckietown_planning.tile_map import (
     parse_tile, tile_exits, TileMap, load_tile_map, tile_route,
     route_headings, route_turns,
+    intersection_cells, intersection_graph, relative_turn,
 )
 
 _MAPS = Path(__file__).resolve().parents[1] / "maps" / "reference"
@@ -80,3 +81,27 @@ def test_4way_carga_y_es_navegable():
     # Hay ruta entre esquinas opuestas atravesando intersecciones.
     ruta = tile_route(tm, (0, 0), (4, 4))
     assert ruta is not None and ruta[0] == (0, 0) and ruta[-1] == (4, 4)
+
+
+def test_giro_relativo():
+    assert relative_turn("N", "N") == "straight"
+    assert relative_turn("E", "N") == "left"               # E rota CCW -> N
+    assert relative_turn("E", "S") == "right"              # E rota CW -> S
+
+
+def test_grafo_de_intersecciones_desde_tiles():
+    tm = load_tile_map(_MAPS / "4way.yaml")
+    nodos = intersection_cells(tm)
+    assert set(nodos) == {(0, 2), (2, 0), (2, 2), (2, 4), (4, 2)}   # 1 cuatro-vias + 4 T
+    g = intersection_graph(tm)
+    # El 4way del centro enlaza con las 4 intersecciones T, siguiendo cada carretera.
+    destinos_4way = {to for _exit, to, _arr in g[(2, 2)]}
+    assert destinos_4way == {(0, 2), (2, 0), (2, 4), (4, 2)}
+    # Todas las aristas terminan en una interseccion (no en una celda cualquiera).
+    for nodo, aristas in g.items():
+        for _exit, to, _arr in aristas:
+            assert to in set(nodos)
+    # Una arista que sale por una curva llega con un rumbo distinto al de salida:
+    # de (0,2) saliendo al ESTE se llega a (2,4) llegando hacia el SUR (la via curva).
+    este = [(to, arr) for ex, to, arr in g[(0, 2)] if ex == "E"]
+    assert este == [((2, 4), "S")]
