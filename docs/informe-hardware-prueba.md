@@ -11,7 +11,7 @@ detallado en [diagnostico-hardware-campo.md](diagnostico-hardware-campo.md).
 ## Fallo observado
 - **Bus I2C 1 (header de 40 pines, `7000c400.i2c`) se cuelga**: `i2cdetect -y -r 1`
   hace timeout en `00:`. No aparece ninguno de los periféricos del HUT:
-  PCA9685 `0x40`/`0x70` (motores), IMU `0x68`, ToF `0x29`, OLED `0x3c`.
+  PCA9685 `0x60` (motores) y `0x40`/`0x70` (LEDs), IMU `0x68`, ToF `0x29`, OLED `0x3c`.
 - **Cámara CSI** (IMX219): `dmesg` muestra `imx219_board_setup: error during i2c
   read probe (-121)` → `/dev/video*` no existe. (Flex CSI mal contactado —
   problema independiente y mecánico.)
@@ -61,6 +61,6 @@ intercambio ni alimentación aislada del módulo):
 
 ## Estado del software (sin bloqueo)
 El stack está listo y subido al repo. En cuanto el bus 1 responda y aparezca
-`0x40`, queda inmediato: prueba de motores (`tools/test_motors.py` /
+`0x60` (motores), queda inmediato: prueba de motores (`tools/test_motors.py` /
 `control/motor_test.py`), sensores (`tools/test_sensors.py`) y calibración fina
 (`tools/calibrate.py`).

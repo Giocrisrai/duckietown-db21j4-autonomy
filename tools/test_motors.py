@@ -19,7 +19,10 @@ from motor_test import pulse_sequence, velocity_to_command
 
 
 def driver_presente(bus=1):
-    """Devuelve la direccion del PCA9685 (0x40/0x60) si responde, si no False."""
+    """Devuelve 0x60 (PCA9685 de MOTORES del HATv3) si responde, si no False.
+
+    OJO: el 0x40 es el PCA9685 de los LEDs, NO de los motores; no se prueba aqui
+    (comandarlo moveria LEDs, no ruedas)."""
     try:
         from smbus2 import SMBus
     except ImportError:
@@ -29,7 +32,7 @@ def driver_presente(bus=1):
             return False
     b = SMBus(bus)
     try:
-        for addr in (0x60, 0x40):           # HATv3 usa 0x60; 0x40 como alternativa
+        for addr in (0x60,):                # HATv3: motores en 0x60 (0x40 = LEDs)
             try:
                 if b.read_byte(addr) >= 0:
                     return addr

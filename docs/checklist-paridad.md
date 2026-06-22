@@ -48,7 +48,7 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
 | Soporte de cualquier modelo de cámara (autodetección, no limitante) | ⭐ plus |
 
 ## Arquitectura HUT del DB21-J4 (verificado leyendo el driver oficial)
-- **Motores**: PCA9685 PWM por **I2C** (0x40) + **GPIO del Jetson** para dirección, vía el
+- **Motores**: PCA9685 PWM por **I2C** (0x60; el 0x40 es el de los LEDs) + **GPIO del Jetson** para dirección, vía el
   **header de 40 pines** (driver oficial `hat_driver/motor.py`: `Adafruit_PWM_Servo_Driver`).
 - **IMU (0x68)/ToF (0x29)/OLED (0x3c)**: I2C por el **header de 40 pines** (`tools/test_sensors.py`).
 - **MCU/Duckiebattery USB** (Atmel `04d8:ecb7`, `/dev/ttyACM0`): power management/periféricos USB.

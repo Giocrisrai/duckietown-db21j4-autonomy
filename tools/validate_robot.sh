@@ -33,8 +33,10 @@ hdr "0) Preflight - bus I2C $BUS"
 if timeout 6 i2cdetect -y -r "$BUS" >/tmp/_i2c1.txt 2>/dev/null; then
   BUS1_OK=1; ok "bus $BUS responde (no esta colgado)"
   scan="$(cat /tmp/_i2c1.txt)"
-  for a in 40 60; do echo "$scan" | grep -qiE " $a " && { PCA_OK=1; ok "PCA9685 (motores) 0x$a presente"; }; done
-  [ "$PCA_OK" = 0 ] && bad "PCA9685 (0x40/0x60) NO presente"
+  # El test de motores requiere el PCA9685 de MOTORES (0x60). El 0x40 es el de LEDs.
+  echo "$scan" | grep -qiE " 60 " && { PCA_OK=1; ok "PCA9685 (motores) 0x60 presente"; } \
+    || bad "PCA9685 de MOTORES (0x60) NO presente"
+  echo "$scan" | grep -qiE " 40 " && ok "PCA9685 (LEDs) 0x40 presente" || warn "PCA9685 (LEDs) 0x40 ausente"
   echo "$scan" | grep -qiE " 68 " && ok "IMU 0x68 presente"   || warn "IMU 0x68 ausente"
   echo "$scan" | grep -qiE " 29 " && ok "ToF 0x29 presente"   || warn "ToF 0x29 ausente"
   echo "$scan" | grep -qiE " 3c " && ok "OLED 0x3c presente"  || warn "OLED 0x3c ausente"

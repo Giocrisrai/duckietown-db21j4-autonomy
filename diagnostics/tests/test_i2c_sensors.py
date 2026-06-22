@@ -5,12 +5,17 @@ from i2c_sensors import expected_addresses, identify, whoami_register, whoami_ok
 def test_direcciones_esperadas():
     addrs = expected_addresses()
     assert 0x68 in addrs and 0x29 in addrs   # IMU y ToF
+    # DB21-J4 HATv3: motores en 0x60, LEDs en 0x40 + all-call 0x70.
+    assert 0x60 in addrs and 0x40 in addrs and 0x70 in addrs
 
 
 def test_identify():
     assert "MPU6050" in identify(0x68)
     assert "VL53L0X" in identify(0x29)
     assert identify(0x11) == "desconocido"
+    # Los motores son 0x60; el 0x40 es el PCA9685 de los LEDs (no de motores).
+    assert "motores" in identify(0x60)
+    assert "LED" in identify(0x40) and "motor" not in identify(0x40).lower()
 
 
 def test_whoami_register():

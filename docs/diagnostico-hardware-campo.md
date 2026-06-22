@@ -19,8 +19,9 @@ como procedimiento reproducible cuando "los motores/sensores/cámara no aparecen
 | i2c-2 | `7000c500.i2c` | EEPROMs de placa/cámara (0x50, 0x57) |
 | i2c-7 / i2c-8 | mux CSI | I2C de control de la cámara CSI |
 
-Direcciones esperadas en un HUT sano (bus 1): `0x40` y `0x70` (PCA9685 motores +
-all-call), `0x68` (IMU MPU-6050), `0x29` (ToF VL53L0X), `0x3c` (OLED).
+Direcciones esperadas en un HUT sano (bus 1) — el HATv3 lleva DOS PCA9685:
+`0x60` (PCA9685 de **motores**), `0x40` + `0x70` (PCA9685 de **LEDs** + su all-call),
+`0x68` (IMU MPU-6050), `0x29` (ToF VL53L0X), `0x3c` (OLED).
 
 ## Procedimiento de aislamiento (de software a hardware)
 
