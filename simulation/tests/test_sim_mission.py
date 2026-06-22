@@ -1,8 +1,13 @@
 """Test de la mision COMPLETA multi-interseccion en el lazo imagen->imagen."""
+from pathlib import Path
+
 import pytest
 
 from duckietown_planning.map_graph import MapGraph
+from duckietown_planning.tile_map import load_tile_map, tile_mission_graph
 from sim_mission import run_mission_image_loop
+
+_TILE_MAPS = Path(__file__).resolve().parents[2] / "planning" / "maps" / "reference"
 
 
 def _mapa_3_intersecciones():
@@ -204,3 +209,17 @@ def test_replanifica_tras_desvio_en_el_lazo():
     assert r["reached"] is True and r["final_node"] == "D"
     assert r["signs_detected"] == ["no-entry"]
     assert r["turns_taken"] == ["right", "left"]          # desvio + re-planificacion correcta
+
+
+def test_mision_imagen_a_imagen_sobre_mapa_de_tiles_real():
+    # Mision conducida SOLO con imagenes sobre el mapa de tiles OFICIAL de Duckietown:
+    # la ruta y los giros se derivan de la grilla de tiles (tile_mission_graph) y el
+    # cerebro los ejecuta atravesando el 4way central.
+    tm = load_tile_map(_TILE_MAPS / "4way.yaml")
+    for (start_cell, goal_cell, giro) in [((1, 2), (2, 1), "right"),
+                                          ((1, 2), (2, 3), "left")]:
+        graph, start, goal = tile_mission_graph(tm, start_cell, goal_cell)
+        r = run_mission_image_loop(graph, start, goal)
+        assert r["reached"] is True
+        assert r["turns_taken"] == [giro]                 # giro derivado del mapa de tiles
+        assert r["max_off"] < 0.08                        # siguio el carril por vision

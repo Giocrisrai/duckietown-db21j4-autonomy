@@ -234,9 +234,20 @@ def _demo():
               f"(prohibio 'straight', tomo la alternativa)")
     except Exception as e:                            # deps de AprilTag ausentes
         print(f"  AprilTags         : (omitido: {type(e).__name__})")
+
+    # Mision sobre un MAPA DE TILES oficial: ruta y giros derivados de la grilla.
+    from pathlib import Path
+    from duckietown_planning.tile_map import load_tile_map, tile_mission_graph
+    ref = Path(__file__).resolve().parents[1] / "planning" / "maps" / "reference" / "4way.yaml"
+    tm = load_tile_map(ref)
+    tg, ts, tgoal = tile_mission_graph(tm, (1, 2), (2, 1))
+    rt2 = run_mission_image_loop(tg, ts, tgoal)
+    print(f"  MAPA DE TILES     : 4way.yaml (1,2)->(2,1) llego={rt2['reached']} "
+          f"giro={rt2['turns_taken']} (derivado de los tiles, conducido por vision)")
     print("  OK: el cerebro condujo TODA la mision solo con pixeles "
-          "(carril + franja + giros + ruta + senales), con ruido y frenando ante el pato."
-          if r["reached"] and rn["reached"] and ro["reached"] and rs["reached"] else "  FALLO")
+          "(carril + franja + giros + ruta + senales), tambien sobre un mapa de tiles real."
+          if r["reached"] and rn["reached"] and ro["reached"] and rs["reached"]
+          and rt2["reached"] else "  FALLO")
 
 
 if __name__ == "__main__":

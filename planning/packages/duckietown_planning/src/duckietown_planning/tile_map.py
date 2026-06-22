@@ -233,6 +233,33 @@ def intersection_graph(tmap):
     return graph
 
 
+def tile_route_turns(tmap, start, goal):
+    """Giros (straight/left/right) a ejecutar EN LAS INTERSECCIONES al ir de la celda
+    `start` a `goal` por la ruta de tiles. Los tramos rectos y las curvas se siguen
+    solos (lane-following); aqui solo van las decisiones de interseccion."""
+    route = tile_route(tmap, start, goal)
+    if route is None or len(route) < 3:
+        return []
+    inters = set(intersection_cells(tmap))
+    headings = route_headings(route)
+    turns = []
+    for i in range(1, len(route) - 1):                 # celdas interiores (con llegada y salida)
+        if route[i] in inters:
+            turns.append(relative_turn(headings[i - 1], headings[i]))
+    return turns
+
+
+def tile_mission_graph(tmap, start, goal):
+    """Construye un MapGraph lineal de la ruta de tiles `start`->`goal` para que el
+    cerebro la conduzca: nodos = intersecciones de la ruta en orden, aristas = el
+    giro en cada una. Devuelve (graph, nodo_inicial, nodo_destino)."""
+    from .map_graph import MapGraph
+    turns = tile_route_turns(tmap, start, goal)
+    nodes = [f"n{i}" for i in range(len(turns) + 1)]
+    edges = [{"from": nodes[i], "to": nodes[i + 1], "turn": t} for i, t in enumerate(turns)]
+    return MapGraph(nodes, edges), nodes[0], nodes[-1]
+
+
 def _demo():
     """Navega un mapa de tiles de referencia completo y narra la ruta."""
     ref = Path(__file__).resolve().parents[4] / "maps" / "reference" / "4way.yaml"
