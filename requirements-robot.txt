@@ -1,4 +1,8 @@
-numpy
-pyyaml
-dt-apriltags
-pyserial
+# Deps que se instalan ENCIMA del base dt-ros-commons:ente (Ubuntu 22.04, ROS Noetic,
+# Python 3.10) en el Dockerfile del robot. El base YA trae numpy/pyyaml/smbus, asi que
+# pip las da por satisfechas y NO las actualiza. Los topes evitan que un build futuro
+# meta una version incompatible con ROS Noetic.
+numpy>=1.21,<2        # numpy 2.0 rompe la ABI de paquetes ROS Noetic compilados con 1.x
+pyyaml>=5.3
+dt-apriltags>=3.3     # deteccion de AprilTags en el robot (familia tag36h11)
+pyserial>=3.5         # enlace serial con el MCU de la HUT (/dev/ttyACM*)

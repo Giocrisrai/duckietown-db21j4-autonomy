@@ -1,7 +1,10 @@
 [project]
 name = "duckietown-new-version"
 version = "0.1.0"
-requires-python = ">=3.9"
+# 3.10 = Python del contenedor del robot (dt-ros-commons ente / Ubuntu 22.04).
+# 3.9 quedo EOL (oct-2025). Las herramientas bare-metal del host Jetson (JetPack 4.6,
+# Python 3.6) son scripts aparte, escritos compatibles con 3.6.
+requires-python = ">=3.10"
 
 [tool.pytest.ini_options]
 pythonpath = [

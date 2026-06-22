@@ -12,7 +12,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python: ["3.11", "3.12"]
+        # 3.10 = Python del contenedor del robot (dt-ros-commons ente, Ubuntu 22.04);
+        # 3.13 = entorno de desarrollo. Asi se cubre todo el rango de despliegue.
+        python: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

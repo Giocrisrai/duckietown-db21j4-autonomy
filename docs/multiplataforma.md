@@ -69,6 +69,26 @@ tools/flash_sd_raw.sh <imagen-jetson.img.xz> <dispositivo>
 Usa balena CLI si está, o `dd` (bs ajustado por SO). La imagen base puede ser
 JetPack 4.6.x o una imagen comunitaria; el stack corre en contenedores encima.
 
+## Matriz de compatibilidad SO / Python
+
+Hay **tres** entornos distintos; cada uno con su Python, y conviene no confundirlos:
+
+| Entorno | SO | Python | Qué corre | Estado |
+|---|---|---|---|---|
+| **Desarrollo / CI** | macOS / Linux | **3.10–3.13** | suite de tests, simulación, entrenamiento | al día (CI prueba 3.10/3.11/3.12/3.13) |
+| **Contenedor del robot** | Ubuntu 22.04 (`dt-ros-commons:ente`) | **3.10** | el stack ROS (percepción, planificación, control) | al día |
+| **Host Jetson Nano (bare-metal)** | Ubuntu 18.04 (JetPack 4.6) | **3.6** | solo herramientas de diagnóstico (`tools/test_sensors.py`, `tools/calibrate.py`, scripts de shell) | **EOL** (límite del HW) |
+
+Notas:
+- `requires-python = ">=3.10"` aplica al paquete/tests, no a las herramientas
+  bare-metal del host (escritas compatibles con 3.6, que es lo que trae JetPack 4.6).
+- El **contenedor** ya provee `numpy`/`pyyaml`/`smbus`; `requirements-robot.txt`
+  pone topes (`numpy<2`) para que un build futuro no rompa la ABI de ROS Noetic.
+- La **Jetson Nano** está descontinuada (JetPack 4.6 es el último; Ubuntu 18.04 y
+  Python 3.6 son EOL). El camino "al día" del hardware es **Jetson Orin** o
+  **Raspberry Pi 4/5** (SO moderno) — ver `docs/hardware-alternativo.md`; el stack ya
+  abstrae la placa (`platform_support/board.py`).
+
 ## Nota sobre `dts`
 `tools/install_dts.sh` y `tools/flash_sd.sh` (wrapper de `dts`) siguen disponibles
 como atajo, pero **no son necesarios**: build/deploy/flash/run tienen alternativa
