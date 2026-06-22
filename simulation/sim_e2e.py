@@ -1,11 +1,14 @@
-"""Simulacion END-TO-END que integra TODO el stack (sin robot).
+"""Smoke-test END-TO-END que compone los modulos reales del stack (sin robot).
 
-Compone los modulos reales del proyecto en una mision completa:
+Encadena, en una mision completa, los modulos del proyecto:
   percepcion de senales (AprilTags) -> planificacion (ruta global + reactiva)
   -> seguridad (freno ToF) -> control (PID seguir-linea) -> calibracion + odometria.
 
-Valida que el cerebro completo coopera: el robot sigue la ruta, frena ante
-obstaculos, respeta senales de stop y mantiene el carril, todo antes de flashear.
+Alcance: es un test de INTEGRACION de las piezas (que encajan en firma y cooperan
+en una mision), con un modelo de mundo de juguete (cada segmento re-arranca el
+seguir-linea desde un d0 fijo; no propaga la pose entre intersecciones). Para el
+lazo de percepcion->control honesto (imagen->imagen) ver `sim_closed_loop` y
+`sim_mission`.
 """
 from duckietown_planning.route_search import plan_route
 from duckietown_planning.intersection_policy import choose_turn

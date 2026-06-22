@@ -58,7 +58,8 @@ class AutonomousController:
         self.stop_sign_dwell = stop_sign_dwell       # ticks de parada obligatoria ante senal stop/yield
         self._sign_dwell = 0                          # contador de la parada por senal en curso
         self.avoid_offset = avoid_offset             # m: cuanto se desplaza el carril para rodear un obstaculo
-        self._avoid_active = 0.0                      # desplazamiento de esquive en curso (latch)
+        self._avoid_side = 0.0                        # lado comprometido del esquive (latch): 0/+-offset
+        self._avoid_active = 0.0                      # desplazamiento de esquive en curso (rampado)
         self._last_pose = None                       # ultima pose de carril estimada (telemetria)
 
     @staticmethod
@@ -99,6 +100,7 @@ class AutonomousController:
         cerca (aunque al apartarse salga del corredor central), hasta rebasarlo;
         entonces vuelve al centro. Evita la oscilacion de un esquive puramente reactivo."""
         if not self.avoid_offset:
+            self._avoid_side = self._avoid_active = 0.0
             return 0.0
         trigger = None                               # (proximidad, centro_x) que dispara
         near = False                                 # obstaculo aun presente en la zona ancha
@@ -117,12 +119,19 @@ class AutonomousController:
                 cx = (bbox[0] + bbox[2]) / 2.0
                 if trigger is None or prox > trigger[0]:
                     trigger = (prox, cx)
-        if trigger is not None and self._avoid_active == 0.0:
-            # iniciar: obstaculo a la derecha -> apartarse a la izquierda (+); y viceversa.
-            self._avoid_active = (self.avoid_offset if trigger[1] >= self.img_w / 2.0
-                                  else -self.avoid_offset)
-        elif self._avoid_active != 0.0 and not near:
-            self._avoid_active = 0.0                  # rebasado: volver al centro
+        if trigger is not None and self._avoid_side == 0.0:
+            # comprometer lado: obstaculo a la derecha -> apartarse a la izquierda (+).
+            self._avoid_side = (self.avoid_offset if trigger[1] >= self.img_w / 2.0
+                                else -self.avoid_offset)
+        elif self._avoid_side != 0.0 and not near:
+            self._avoid_side = 0.0                     # rebasado: volver al centro
+        # Rampa hacia el lado comprometido (suaviza el escalon del error de carril ->
+        # evita el pico derivativo del PID al enganchar/soltar la maniobra).
+        rate = self.avoid_offset / 3.0
+        if self._avoid_active < self._avoid_side:
+            self._avoid_active = min(self._avoid_side, self._avoid_active + rate)
+        elif self._avoid_active > self._avoid_side:
+            self._avoid_active = max(self._avoid_side, self._avoid_active - rate)
         return self._avoid_active
 
     def _crossing_present(self, obs, classes=("duckie", "pedestrian"),
@@ -206,7 +215,7 @@ class AutonomousController:
         # velocidad (anula el frenado SLOW) para tener margen de maniobra lateral; el
         # STOP de emergencia (muy cerca) sigue mandando como ultimo recurso.
         self._avoidance(obs)
-        if self._avoid_active and decision["action"] == "SLOW":
+        if self._avoid_side and decision["action"] == "SLOW":
             decision = {"action": "SLOW", "brake": 0.4, "reason": "esquive",
                         "tof_stop": False, "max_proximity": decision["max_proximity"],
                         "distance_m": decision.get("distance_m")}

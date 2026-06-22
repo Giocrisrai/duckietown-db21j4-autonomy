@@ -1,14 +1,20 @@
-"""Simulacion AUTONOMA de lazo cerrado end-to-end (sin robot).
+"""Simulacion AUTONOMA de lazo cerrado de PLANIFICACION + FSM + control (sin robot).
 
 Maneja una mision completa a traves del cerebro integrado
 (`duckietown_planning.autonomy.AutonomousController`): seguir carril con PID,
 detectar la linea de stop, detenerse en la interseccion, elegir el giro segun la
 ruta global, ejecutar el giro, reanudar, y frenar ante obstaculos (pato/coche)
-por la fusion vision+ToF. Valida que TODO el stack coopera antes de tocar hardware.
+por la fusion vision+ToF.
 
-Es un modelo de mundo minimo pero realista: integra un modelo lateral (d, phi)
-empujado por el `omega` del controlador, avanza distancia por segmento, y dispara
-los eventos (stop_line, at_stop_line, turn_done, obstaculo) segun el progreso.
+Alcance: aqui el error de carril se le ENTREGA al cerebro como escalar (`lane_error`,
+del estado interno del modelo), no se estima de una imagen; valida la cooperacion
+de planificacion + FSM + control, no la percepcion de carril. El lazo HONESTO de
+percepcion->control (imagen->imagen, sin escalares privilegiados) esta en
+`sim_closed_loop` y `sim_mission`.
+
+Modelo de mundo: integra un modelo lateral (d, phi) empujado por el `omega` del
+controlador, avanza distancia por segmento, y dispara los eventos (stop_line,
+at_stop_line, turn_done, obstaculo) segun el progreso.
 """
 import math
 
