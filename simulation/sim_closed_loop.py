@@ -164,6 +164,88 @@ def run_image_loop(off0=0.06, psi0=0.0, steps=200, dt=0.05, base_speed=0.3,
             "converged": abs(offs[-1]) < 0.03}
 
 
+def run_loop(segments, obstacles=(), avoid_offset=0.0, dt=0.05, base_speed=0.3,
+             off0=0.0, kp=3.0, k_heading=0.5):
+    """Recorre un LOOP completo imagen->imagen, esquivando los obstaculos de la pista.
+
+    segments: lista de (curvatura, longitud) por tile del loop (recto=0, curva=+-k).
+    obstacles: distancias longitudinales `s` (m) de los obstaculos a lo largo del loop.
+    Conduce hasta cubrir toda la longitud del loop. Devuelve dict: completed (recorrio
+    el loop entero), n_passed (obstaculos rebasados), max_off, stopped, s, total.
+    """
+    bounds, acc = [], 0.0
+    for k, length in segments:
+        bounds.append((acc, k))
+        acc += length
+    total = acc
+
+    def curv_at(s):
+        c = 0.0
+        for s0, k in bounds:
+            if s >= s0:
+                c = k
+            else:
+                break
+        return c
+
+    pid = PID(kp, 0.0, 0.0, out_limits=(-5.0, 5.0))
+    ctrl = AutonomousController(homography=_H, base_speed=base_speed,
+                               img_size=(IMG_W, IMG_H), pid=pid, k_heading=k_heading,
+                               avoid_offset=avoid_offset)
+    off, dpsi, s = float(off0), 0.0, 0.0
+    offs, passed, stopped = [off], set(), False
+    max_steps = int(total / (base_speed * dt)) * 4 + 200
+    for _ in range(max_steps):
+        if s >= total:
+            break
+        curvature = curv_at(s)
+        img = render(off, dpsi, curvature)
+        # obstaculo mas cercano por delante en rango
+        det, best = None, None
+        for sob in obstacles:
+            d = _obstacle_detection(s, off, (sob, 0.0))
+            if d is not None and (best is None or sob - s < best):
+                det, best = d, sob - s
+        cmd = ctrl.step({"image": img, "img_w": IMG_W, "img_h": IMG_H,
+                         "detections": [det] if det else []}, dt)
+        if cmd["state"] == STOPPED:
+            stopped = True
+        v, omega = cmd["v"], cmd["omega"]
+        denom = max(1.0 - off * curvature, 1e-3)
+        sdot = v * math.cos(dpsi) / denom
+        s += sdot * dt
+        off += v * math.sin(dpsi) * dt
+        dpsi += (omega - curvature * sdot) * dt
+        offs.append(off)
+        for sob in obstacles:
+            if sob < s:
+                passed.add(sob)
+    return {"completed": bool(s >= total), "s": float(s), "total": total,
+            "n_passed": len(passed), "max_off": float(max(abs(o) for o in offs)),
+            "stopped": bool(stopped)}
+
+
+def run_map_loop(map_path, avoid_offset=0.0, curve_kappa=1.5, **kw):
+    """Recorre el LOOP de un mapa de tiles real esquivando sus obstaculos: deriva los
+    segmentos (curvas del patron de giros) y las posiciones de los obstaculos de la
+    pista desde el mapa, y los conduce con run_loop."""
+    from pathlib import Path
+    import yaml
+    from duckietown_planning.tile_map import (
+        load_tile_map, load_map_objects, track_obstacles, route_turns, loop_cells)
+    tm = load_tile_map(map_path)
+    order = loop_cells(tm)
+    if order is None:
+        raise ValueError("el mapa no es un loop simple")
+    tile_len = (yaml.safe_load(Path(map_path).read_text()) or {}).get("tile_size", 0.585)
+    turns = route_turns(order + [order[0], order[1]])    # giros cerrando el loop
+    segments = [(0.0 if t == "straight" else (curve_kappa if t == "left" else -curve_kappa),
+                 tile_len) for t in turns]
+    obstacles = sorted({order.index(c) * tile_len
+                        for _o, c in track_obstacles(load_map_objects(map_path), tm)})
+    return run_loop(segments, obstacles, avoid_offset=avoid_offset, **kw)
+
+
 def _demo():
     print("== Lazo cerrado IMAGEN->IMAGEN: seguir-carril (el cerebro solo ve pixeles) ==")
     r = run_image_loop(off0=0.06, psi0=0.10, steps=200)
@@ -182,10 +264,15 @@ def _demo():
     print("  [esquive] obstaculo en pista: SIN esquive avanza {:.2f} m (atascado); "
           "CON esquive rodea (pico {:+.3f} m) y avanza {:.2f} m".format(
               rsin["s"], max(ro["off"]), ro["s"]))
-    print("  OK: el lazo percepcion->control siguio el carril (recto, curva, ruido) y "
-          "esquivo el obstaculo del mapa."
+    from pathlib import Path
+    mapa = Path(__file__).resolve().parents[1] / "planning" / "maps" / "reference" / "loop_obstacles.yaml"
+    rl = run_map_loop(mapa, avoid_offset=0.22)
+    print("  [loop]   loop_obstacles ENTERO ({:.1f} m): completo={}, obstaculos rebasados={}, "
+          "freno en seco={}".format(rl["total"], rl["completed"], rl["n_passed"], rl["stopped"]))
+    print("  OK: el lazo percepcion->control siguio el carril (recto, curva, ruido), esquivo "
+          "el obstaculo y recorrio el loop_obstacles ENTERO esquivando todos sus obstaculos."
           if r["converged"] and rc["max_abs_off"] < 0.08 and abs(rn["off"][-1]) < 0.03
-          and ro["s"] > 1.0 else "  FALLO.")
+          and ro["s"] > 1.0 and rl["completed"] else "  FALLO.")
 
 
 if __name__ == "__main__":

@@ -91,3 +91,19 @@ def test_esquiva_obstaculo_del_mapa_y_continua():
     assert abs(con["off"][-1]) < 0.03             # volvio al centro tras rebasarlo
     assert not con["stopped"]                     # no tuvo que frenar en seco
     assert sin["s"] < 1.0                         # sin esquive: atascado antes del obstaculo
+
+
+def test_recorre_el_loop_completo_esquivando_obstaculos():
+    # Recorre el loop_obstacles ENTERO (mapa de tiles real) esquivando sus obstaculos
+    # de la pista; sin esquive se atasca antes del primero.
+    from pathlib import Path
+    from sim_closed_loop import run_map_loop
+    mapa = Path(__file__).resolve().parents[2] / "planning" / "maps" / "reference" / "loop_obstacles.yaml"
+
+    con = run_map_loop(mapa, avoid_offset=0.22)
+    assert con["completed"] is True                  # recorrio el loop entero
+    assert con["n_passed"] >= 2                       # rebaso los obstaculos de la pista
+    assert con["stopped"] is False                    # sin frenar en seco (no se atasco)
+
+    sin = run_map_loop(mapa, avoid_offset=0.0)
+    assert sin["completed"] is False                  # sin esquive: atascado en un obstaculo

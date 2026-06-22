@@ -264,6 +264,24 @@ def intersection_graph(tmap):
     return graph
 
 
+def loop_cells(tmap, start=None):
+    """Orden de las celdas de un mapa-LOOP (sin intersecciones): sigue los vecinos
+    desde `start` hasta cerrar el ciclo. Devuelve la lista de celdas en orden, o None
+    si el mapa no es un loop simple (alguna celda no tiene exactamente 2 vecinos)."""
+    drivable = tmap.drivable_cells()
+    if not drivable or any(len(tmap.neighbors(c)) != 2 for c in drivable):
+        return None
+    start = start if start is not None else min(drivable)
+    order, prev, cur = [start], None, start
+    while True:
+        nxt = next((n for n in tmap.neighbors(cur) if n != prev), None)
+        if nxt is None or nxt == start:
+            break
+        order.append(nxt)
+        prev, cur = cur, nxt
+    return order if len(order) == len(drivable) else None
+
+
 def tile_route_turns(tmap, start, goal):
     """Giros (straight/left/right) a ejecutar EN LAS INTERSECCIONES al ir de la celda
     `start` a `goal` por la ruta de tiles. Los tramos rectos y las curvas se siguen
