@@ -1,5 +1,37 @@
 """Tests para validacion del modelo YOLO26."""
-from yolo26.validate import passes_threshold, MIN_MAP50
+import sys
+import types
+
+from yolo26.validate import passes_threshold, MIN_MAP50, validate
+
+
+def test_validate_extrae_map50(monkeypatch):
+    """validate() debe correr YOLO.val(data,imgsz) y devolver box.map50."""
+    calls = {}
+
+    class FakeBox:
+        map50 = 0.842
+
+    class FakeMetrics:
+        box = FakeBox()
+
+    class FakeYOLO:
+        def __init__(self, weights):
+            calls["weights"] = weights
+
+        def val(self, **kw):
+            calls["kw"] = kw
+            return FakeMetrics()
+
+    fake = types.ModuleType("ultralytics")
+    fake.YOLO = FakeYOLO
+    monkeypatch.setitem(sys.modules, "ultralytics", fake)
+
+    m = validate("best.pt", "duckietown.yaml", imgsz=416)
+    assert m == 0.842
+    assert calls["weights"] == "best.pt"
+    assert calls["kw"]["data"] == "duckietown.yaml"
+    assert calls["kw"]["imgsz"] == 416
 
 
 def test_umbral_por_defecto():

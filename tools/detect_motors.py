@@ -8,7 +8,7 @@ REAL a los motores (con el driver oficial `hat_driver` HATv3) está en
 `tools/validate_robot.sh`.
 
 Uso (en el robot):
-    sudo python3 tools/test_motors.py            # solo detecta + imprime la secuencia
+    sudo python3 tools/detect_motors.py            # solo detecta + imprime la secuencia
     sudo bash tools/validate_robot.sh --motors   # <- prueba REAL (gira los motores)
 """
 import sys

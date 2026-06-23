@@ -95,7 +95,7 @@ diagnose:        ## diagnostico I2C automatico (veredicto + pasos)  [sudo]
 	sudo python3 tools/diagnose_i2c.py
 
 sensors:         ## prueba sensores I2C del bus BUS (IMU/ToF/OLED)   [sudo]
-	sudo python3 tools/test_sensors.py $(BUS)
+	sudo python3 tools/detect_sensors.py $(BUS)
 
 validate-robot:  ## valida TODO el hardware SIN mover motores        [sudo]
 	sudo bash tools/validate_robot.sh

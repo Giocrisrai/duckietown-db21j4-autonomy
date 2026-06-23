@@ -81,6 +81,20 @@ def test_recommended_steps_controlador_sugiere_reset():
     assert "reset" in texto and "unbind" in texto
 
 
+def test_stuck_low_barrido_de_frontera():
+    """El umbral stuck-low es addr <= FIRST_SCAN_ADDR+5 (0x08). Barremos la frontera:
+    0x03..0x08 -> stuck_low; 0x09 -> ya NO es stuck_low (controlador)."""
+    for addr in range(0x03, 0x09):               # 0x03..0x08 inclusive
+        dmesg = [f"tegra-i2c 7000c400.i2c: i2c transfer timed out addr: 0x{addr:x}"]
+        d = classify_i2c_fault({1: "hung"}, dmesg)
+        assert d["fault"] == "stuck_low", f"0x{addr:02x} deberia ser stuck_low"
+    # 0x09 ya esta fuera del rango de 'primera direccion' -> controlador.
+    d09 = classify_i2c_fault({1: "hung"},
+                             ["tegra-i2c 7000c400.i2c: i2c transfer timed out addr: 0x9"])
+    assert d09["fault"] == "controller"
+    assert d09["software_reset_useful"] is True
+
+
 def test_status_from_returncode():
     """i2cdetect: rc 0 = bus respondio; rc!=0 (124 timeout) = colgado."""
     assert status_from_returncode(0) == "ok"

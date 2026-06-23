@@ -2,7 +2,7 @@
 """Prueba REAL de los sensores del Duckiebot por I2C (IMU/ToF/PWM/OLED).
 
 Escanea las direcciones del HUT, verifica presencia y WHO_AM_I. Uso (en el robot):
-    sudo python3 tools/test_sensors.py [bus]      # bus por defecto: 1
+    sudo python3 tools/detect_sensors.py [bus]      # bus por defecto: 1
 """
 import sys
 from pathlib import Path

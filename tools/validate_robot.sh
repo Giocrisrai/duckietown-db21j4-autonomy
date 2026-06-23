@@ -48,7 +48,7 @@ fi
 # ---------- 1) Sensores ----------
 hdr "1) Sensores (IMU/ToF/OLED)"
 if [ "$BUS1_OK" = 1 ]; then
-  python3 "$REPO/tools/test_sensors.py" "$BUS" || warn "test_sensors reporto faltantes"
+  python3 "$REPO/tools/detect_sensors.py" "$BUS" || warn "test_sensors reporto faltantes"
 else
   warn "omitido (bus $BUS colgado)"
 fi

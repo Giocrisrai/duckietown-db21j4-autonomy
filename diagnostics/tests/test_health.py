@@ -27,6 +27,31 @@ def test_tof():
     assert tof_ok(None) is False
 
 
+def test_bateria_fronteras_exactas():
+    """Limites exactos: critical=10 y low=20 son <= (un off-by-one se detecta aqui)."""
+    assert battery_status(10.0) == "critico"     # == critical -> critico (<=)
+    assert battery_status(10.01) == "bajo"       # justo por encima
+    assert battery_status(20.0) == "bajo"        # == low -> bajo (<=)
+    assert battery_status(20.01) == "ok"         # justo por encima
+
+
+def test_imu_fronteras_tolerancia():
+    """El borde es inclusivo (<=). Usamos g/tol exactos en float (10.0/3.0) para
+    que la frontera 13.0 y 7.0 sea exacta y se distinga <= de <."""
+    assert imu_sane(13.0, g=10.0, tol=3.0) is True     # diff == tol -> incluido
+    assert imu_sane(13.001, g=10.0, tol=3.0) is False  # apenas afuera
+    assert imu_sane(7.0, g=10.0, tol=3.0) is True       # diff == tol (otro lado)
+    assert imu_sane(6.999, g=10.0, tol=3.0) is False
+
+
+def test_tof_fronteras_rango():
+    """Rango fisico [0.02, 1.2] inclusive."""
+    assert tof_ok(0.02) is True
+    assert tof_ok(0.019) is False
+    assert tof_ok(1.2) is True
+    assert tof_ok(1.21) is False
+
+
 def test_summarize():
     r = {"battery_percent": 8, "left_delta": 0, "right_delta": 0, "moving": True,
          "accel_magnitude": 9.8, "tof_range": 0.3}

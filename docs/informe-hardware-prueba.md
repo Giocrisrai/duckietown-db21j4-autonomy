@@ -83,6 +83,6 @@ intercambio ni alimentación aislada del módulo):
 
 ## Estado del software (sin bloqueo)
 El stack está listo y subido al repo. En cuanto el bus 1 responda y aparezca
-`0x60` (motores), queda inmediato: prueba de motores (`tools/test_motors.py` /
-`control/motor_test.py`), sensores (`tools/test_sensors.py`) y calibración fina
+`0x60` (motores), queda inmediato: prueba de motores (`tools/detect_motors.py` /
+`control/motor_test.py`), sensores (`tools/detect_sensors.py`) y calibración fina
 (`tools/calibrate.py`).

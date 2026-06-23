@@ -77,7 +77,7 @@ Hay **tres** entornos distintos; cada uno con su Python, y conviene no confundir
 |---|---|---|---|---|
 | **Desarrollo / CI** | macOS / Linux | **3.10–3.13** | suite de tests, simulación, entrenamiento | al día (CI prueba 3.10/3.11/3.12/3.13) |
 | **Contenedor del robot** | Ubuntu 22.04 (`dt-ros-commons:ente`) | **3.10** | el stack ROS (percepción, planificación, control) | al día |
-| **Host Jetson Nano (bare-metal)** | Ubuntu 18.04 (JetPack 4.6) | **3.6** | solo herramientas de diagnóstico (`tools/test_sensors.py`, `tools/calibrate.py`, scripts de shell) | **EOL** (límite del HW) |
+| **Host Jetson Nano (bare-metal)** | Ubuntu 18.04 (JetPack 4.6) | **3.6** | solo herramientas de diagnóstico (`tools/detect_sensors.py`, `tools/calibrate.py`, scripts de shell) | **EOL** (límite del HW) |
 
 Notas:
 - `requires-python = ">=3.10"` aplica al paquete/tests, no a las herramientas

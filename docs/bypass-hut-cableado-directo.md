@@ -34,13 +34,13 @@ así que los breakouts funcionan sin la HUT. Todos comparten los **mismos 2 hilo
   encadenan en esos 4 pines (3.3 V y GND en común; SDA/SCL compartidos).
 - Son de 3.3 V → compatibles directo con el header (no usar 5 V en SDA/SCL).
 - **El stack los reconoce sin cambios**: escanea por dirección
-  (`diagnostics/i2c_sensors.py`, `tools/test_sensors.py --bus 1`).
+  (`diagnostics/i2c_sensors.py`, `tools/detect_sensors.py --bus 1`).
 
 Validar:
 ```bash
 # en el robot (host Jetson)
 i2cdetect -y -r 1            # deben aparecer 0x68 / 0x29 / 0x3c segun lo conectado
-sudo python3 tools/test_sensors.py 1    # bus posicional (por defecto 1)
+sudo python3 tools/detect_sensors.py 1    # bus posicional (por defecto 1)
 ```
 
 ## 2. Motores — driver externo (drop-in en 0x60)
@@ -72,7 +72,7 @@ Antes de quitar la HUT, asegura cómo se alimenta el Jetson:
 
 Igual que con la HUT: **no girar motores hasta confirmar ruedas en el aire**
 (robot sobre soporte). Primero un pulso mínimo por rueda para verificar sentido,
-luego el test completo (`tools/test_motors.py`).
+luego el test completo (`tools/detect_motors.py`).
 
 ## Resumen rápido (generado por código)
 
