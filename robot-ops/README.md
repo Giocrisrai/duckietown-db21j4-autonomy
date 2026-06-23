@@ -31,3 +31,29 @@ DISPLAY=:0 xset s off -dpms s noblank
 El driver Tegra de L4T no acepta forzar resolución sin pantalla. Para resolución
 real (1080p): **dummy HDMI (~US$5)** o un monitor un momento. Mientras, usar el
 zoom del cliente VNC.
+
+## Seguridad (importante)
+Estos scripts asumen el **enlace USB device-mode privado** (`192.168.55.x`, robot↔host,
+no expuesto a internet). Endurecimiento aplicado y recomendaciones:
+
+- **Bind acotado:** x11vnc escucha **solo en la IP del enlace USB** (`-listen
+  192.168.55.1`), no en `0.0.0.0` → no se expone en otras interfaces (WiFi/Ethernet).
+- **Sin clave débil por defecto:** `setup_vnc_nosudo.sh` **exige** una clave fuerte
+  como argumento; `~/.vnc/passwd` queda con permisos `600`.
+- **VNC va en CLARO (sin cifrar).** Solo es aceptable en el enlace USB privado. En
+  **cualquier red no confiable (WiFi/Ethernet)**: NO expongas el 5900 — usa **túnel
+  SSH** y bind a localhost:
+  ```bash
+  # host:
+  ssh -L 5900:localhost:5900 prueba@<ip-robot>
+  # robot:  arranca con BIND=localhost
+  bash robot-ops/setup_vnc_nosudo.sh 'CLAVE-FUERTE' localhost
+  # luego conecta el cliente VNC a  vnc://localhost:5900
+  ```
+- **Auto-arranque:** `vnc_autostart.sh` deja el VNC corriendo en cada boot. Si no lo
+  quieres permanente, quita la línea `@reboot` del `crontab -e`.
+- **NOPASSWD sudo de debug:** si habilitaste `/etc/sudoers.d/prueba-nopw` para
+  configurar la resolución, **revértelo al terminar** (vuelve a pedir contraseña):
+  ```bash
+  sudo rm /etc/sudoers.d/prueba-nopw
+  ```
