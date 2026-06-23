@@ -20,4 +20,8 @@ RUN pip3 install -r "${REPO_PATH}/requirements-robot.txt"
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \
     catkin build --workspace "${CATKIN_WS_DIR}"
 
-CMD ["roslaunch", "bringup", "full_stack.launch"]
+# Exec-form con `bash -c`: maneja senales correctamente (JSON args) Y expande
+# VEHICLE_NAME. El launch exige `veh`, asi que SIEMPRE se lo pasamos (fallback al
+# hostname) para que `docker run` no falle aunque se ejecute sin docker-compose.
+# El compose tambien pasa veh:=${VEHICLE_NAME}.
+CMD ["/bin/bash", "-c", "roslaunch bringup full_stack.launch veh:=${VEHICLE_NAME:-$(hostname)}"]
