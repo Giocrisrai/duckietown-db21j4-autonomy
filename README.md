@@ -79,6 +79,24 @@ make validate W=best.pt DATA=duckietown.yaml           # reporta mAP50 y umbral
 Notebook GPU: [`training/notebooks/colab_yolo26.ipynb`](training/notebooks/colab_yolo26.ipynb).
 Resultados: [`docs/resultados-entrenamiento.md`](docs/resultados-entrenamiento.md) (0.833 sintético → 0.871 → **0.937** real; transfer learning +0.273) · [`docs/resultados-rl.md`](docs/resultados-rl.md).
 
+### Manejo manual y entrenamiento por refuerzo (gym)
+
+Ambos **incluidos y testeados**, expuestos en `make`:
+
+```bash
+make teleop T=0.6 S=0.2     # manejo MANUAL: mapea throttle/steer -> ruedas (control/teleop.py, 4 tests)
+make rl-deps                # instala gymnasium + stable-baselines3
+make rl-train STEPS=30000   # entrena PPO de seguir-linea en el gym (rl/, 6 tests)
+make rl-eval                # evalua el agente vs la base PD
+```
+
+- **Manejo manual:** `control/teleop.py` es el mapeo joystick/teclado→ruedas (la misma
+  lógica que alimenta al `joy_mapper` en el robot, encadenable con la calibración).
+- **Gym/RL:** `rl/lane_env.py` es un **`gymnasium.Env`** de seguir-línea + PPO
+  (`rl/train_ppo.py`) + analítica vs PD. ⚠️ El gym **entrena fuera del robot** (CPU/Mac/
+  Colab): la Jetson Nano es EOL y no entrena; la política aprendida se exporta como los
+  modelos de visión.
+
 ## Validación local (sin robot) — 324 tests
 
 `make test` cubre, con TDD: config/dataset/export de entrenamiento; pre/post-proceso de

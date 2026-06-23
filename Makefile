@@ -2,7 +2,8 @@
 # `make` o `make help` lista todo. Variables: BUS=1 HOST=prueba CAMERA=pi-m12
 #   IMG=<imagen> DEV=<disco> MODE=registry|tar CAL=<yaml>
 .PHONY: help setup test sim sim-auto sim-loop sim-mission tile-route \
-        dataset-check train export validate \
+        dataset-check train export validate teleop \
+        rl-deps rl-train rl-eval \
         diagnose sensors validate-robot validate-robot-motors \
         calibrate-generate calibrate-validate monitor bypass-info \
         build-image deploy flash
@@ -11,6 +12,9 @@ BUS    ?= 1
 HOST   ?= prueba
 CAMERA ?= pi-m12
 MODE   ?= registry
+STEPS  ?= 30000
+T      ?= 0.6
+S      ?= 0.2
 
 PYDEMO = PYTHONPATH=simulation:planning/packages/duckietown_planning/src:perception/packages/object_detection/src:control
 
@@ -43,6 +47,19 @@ sim-mission:     ## demo: mision completa multi-interseccion en lazo imagen->ima
 
 tile-route:      ## demo: navegacion tile-to-tile sobre un mapa de tiles completo
 	PYTHONPATH=planning/packages/duckietown_planning/src python -m duckietown_planning.tile_map
+
+teleop:          ## manejo MANUAL: mapea throttle/steer a ruedas (uso: make teleop T=0.6 S=0.2)
+	PYTHONPATH=control python -m teleop $(T) $(S)
+
+# ───────────────────────── RL / gym (entrena FUERA del robot) ─────────────────────
+rl-deps:         ## instala dependencias de RL (gymnasium + stable-baselines3)
+	pip install -r requirements-rl.txt
+
+rl-train:        ## entrena PPO de seguir-linea en el gym (uso: make rl-train STEPS=30000)
+	python -m rl.train_ppo --timesteps $(STEPS)
+
+rl-eval:         ## evalua PPO vs base PD en el gym (uso: make rl-eval STEPS=5000)
+	python -m rl.train_ppo --timesteps $(STEPS) --episodes-eval 20
 
 dataset-check:   ## valida el dataset (uso: make dataset-check DATA=datasets/duckietown)
 	PYTHONPATH=training python -c "from yolo26.dataset_check import check_dataset; print(check_dataset('$(DATA)'))"

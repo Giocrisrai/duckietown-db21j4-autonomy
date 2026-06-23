@@ -16,3 +16,23 @@ def joystick_to_wheels(throttle, steer, max_speed=0.5):
     vr = v - steer * max_speed
     clamp = lambda x: max(-max_speed, min(max_speed, x))
     return clamp(vl), clamp(vr)
+
+
+def _demo(argv):
+    """Demo CLI del mapeo manual: throttle steer [max_speed] -> ruedas.
+    Uso: python -m teleop 0.6 0.2   (sin args muestra una tabla de ejemplos)."""
+    if len(argv) >= 2:
+        thr, st = float(argv[0]), float(argv[1])
+        mx = float(argv[2]) if len(argv) > 2 else 0.5
+        vl, vr = joystick_to_wheels(thr, st, mx)
+        print(f"throttle={thr:+.2f} steer={st:+.2f} -> v_left={vl:+.3f} v_right={vr:+.3f}")
+        return
+    print("Mapeo manual joystick/teclado -> ruedas (v_left, v_right):")
+    for thr, st in [(1, 0), (-1, 0), (0, 1), (0, -1), (0.6, 0.2)]:
+        vl, vr = joystick_to_wheels(thr, st)
+        print(f"  throttle={thr:+.1f} steer={st:+.1f} -> ({vl:+.3f}, {vr:+.3f})")
+
+
+if __name__ == "__main__":
+    import sys
+    _demo(sys.argv[1:])
