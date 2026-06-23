@@ -9,20 +9,32 @@ REAL a los motores (con el driver oficial `hat_driver` HATv3) está en
 
 Uso (en el robot):
     sudo python3 tools/detect_motors.py            # solo detecta + imprime la secuencia
+    DT_HW_PROFILE=external-bus1 sudo -E python3 tools/detect_motors.py  # driver externo
     sudo bash tools/validate_robot.sh --motors   # <- prueba REAL (gira los motores)
+
+El bus y la direccion del driver salen del PERFIL DE HARDWARE central
+(`platform_support/hw_profile.py`), asi la MISMA logica vale para la HUT o un
+driver externo en otro puerto/direccion (ver DT_HW_PROFILE).
 """
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "control"))
-from motor_test import pulse_sequence, velocity_to_command
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "control"))
+sys.path.insert(0, str(ROOT / "platform_support"))
+from motor_test import pulse_sequence, velocity_to_command   # noqa: E402
+from hw_profile import motor_target, active_profile           # noqa: E402
 
 
-def driver_presente(bus=1):
-    """Devuelve 0x60 (PCA9685 de MOTORES del HATv3) si responde, si no False.
+def driver_presente(bus=None, addr=None):
+    """Devuelve la direccion del driver de motores si responde, si no False.
 
-    OJO: el 0x40 es el PCA9685 de los LEDs, NO de los motores; no se prueba aqui
-    (comandarlo moveria LEDs, no ruedas)."""
+    Bus/direccion vienen del perfil de hardware activo (override por args).
+    OJO: solo prueba el driver de MOTORES; no toca el de LEDs (moveria LEDs)."""
+    if bus is None or addr is None:
+        pbus, paddr = motor_target()
+        bus = pbus if bus is None else bus
+        addr = paddr if addr is None else addr
     try:
         from smbus2 import SMBus
     except ImportError:
@@ -32,12 +44,11 @@ def driver_presente(bus=1):
             return False
     b = SMBus(bus)
     try:
-        for addr in (0x60,):                # HATv3: motores en 0x60 (0x40 = LEDs)
-            try:
-                if b.read_byte(addr) >= 0:
-                    return addr
-            except Exception:
-                continue
+        try:
+            if b.read_byte(addr) >= 0:
+                return addr
+        except Exception:
+            return False
     finally:
         try:
             b.close()
@@ -47,12 +58,16 @@ def driver_presente(bus=1):
 
 
 def main():
+    prof = active_profile()
+    bus, _ = motor_target()
     addr = driver_presente()
     if not addr:
-        print("  Driver de motores NO detectado (¿HUT conectada/alimentada y bus I2C 1 ok?).")
-        print("  No se mueve nada. Revisa el acople de 40 pines / la HUT.")
+        print(f"  Driver de motores NO detectado en perfil '{prof['name']}' "
+              f"(bus {bus}, 0x{prof['motor_addr']:02x}).")
+        print("  Revisa HUT/alimentacion, o prueba otro perfil: DT_HW_PROFILE=external-bus1")
         return 1
-    print(f"  Driver de motores en 0x{addr:02x}. Secuencia segura (dirección@PWM):")
+    print(f"  Driver de motores en bus {bus} 0x{addr:02x} (perfil '{prof['name']}'). "
+          f"Secuencia segura (direccion@PWM):")
     for vl, vr, dt in pulse_sequence():
         dl, sl = velocity_to_command(vl)
         dr, sr = velocity_to_command(vr)

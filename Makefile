@@ -4,7 +4,7 @@
 .PHONY: help setup test ci clean lint sim sim-auto sim-loop sim-mission tile-route \
         dataset-check train export validate teleop \
         rl-deps rl-train rl-eval \
-        diagnose sensors validate-robot validate-robot-motors \
+        diagnose sensors detect-motors validate-robot validate-robot-motors \
         calibrate-generate calibrate-validate monitor bypass-info \
         ssh camera-grab record health start stop logs \
         build-image deploy flash
@@ -22,6 +22,8 @@ COUNT   ?= 50
 # ruta del compose en el robot (la deja `make deploy`) y puerto del monitor
 COMPOSE ?= /tmp/dt-compose.yaml
 PORT    ?= 8080
+# perfil de hardware (bus+direcciones): hut | external-bus1 | external-gpio
+PROFILE ?= hut
 
 PYDEMO = PYTHONPATH=simulation:planning/packages/duckietown_planning/src:perception/packages/object_detection/src:control
 
@@ -96,6 +98,9 @@ diagnose:        ## diagnostico I2C automatico (veredicto + pasos)  [sudo]
 
 sensors:         ## prueba sensores I2C del bus BUS (IMU/ToF/OLED)   [sudo]
 	sudo python3 tools/detect_sensors.py $(BUS)
+
+detect-motors:   ## detecta el driver de motores segun PROFILE (hut|external-bus1|external-gpio)
+	sudo -E DT_HW_PROFILE=$(PROFILE) python3 tools/detect_motors.py
 
 validate-robot:  ## valida TODO el hardware SIN mover motores        [sudo]
 	sudo bash tools/validate_robot.sh

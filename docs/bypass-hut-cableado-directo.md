@@ -43,7 +43,30 @@ i2cdetect -y -r 1            # deben aparecer 0x68 / 0x29 / 0x3c segun lo conect
 sudo python3 tools/detect_sensors.py 1    # bus posicional (por defecto 1)
 ```
 
-## 2. Motores — driver externo (drop-in en 0x60)
+## Arquitectura: perfil de hardware (bus + direcciones configurables)
+
+El bus I2C y las direcciones **ya no están clavados** en el código: viven en un solo
+lugar, `platform_support/hw_profile.py`, y se eligen con `DT_HW_PROFILE`. Así la
+**misma lógica** de motores/sensores sirve sobre la HUT o sobre un driver externo en
+otro puerto/dirección — sin reescribir nada.
+
+| Perfil | Bus motores | Dir. motores | Cuándo |
+|---|---|---|---|
+| `hut` (def) | 1 (pines 3/5) | `0x60` | HUT sana |
+| `external-bus1` | 1 (pines 3/5) | **`0x61`** | el `0x60` de la HUT murió pero el **bus 1 vive** (IMU responde): cuelgas un PCA9685 externo en `0x61` y reutilizas la IMU `0x68` |
+| `external-gpio` | `i2c-gpio` nuevo | `0x60` | bus bit-bang en pines GPIO libres, **independiente de la HUT** |
+
+```bash
+make detect-motors PROFILE=external-bus1     # detecta el driver en el perfil elegido
+DT_HW_PROFILE=external-bus1 sudo -E python3 tools/detect_motors.py
+```
+
+> Caso `prueba`: el bus 1 revivió y la **IMU (0x68) funciona**, pero **ambos PCA9685
+> de la HUT (motores 0x60 / LEDs 0x40) hacen ACK pero NACKean toda lectura/escritura**
+> (chips dañados). Camino real para mover motores: **`external-bus1`** (PCA9685
+> externo en `0x61` sobre el bus 1 vivo) o **`external-gpio`** (bus nuevo, `0x60`).
+
+## 2. Motores — driver externo (drop-in)
 
 El Jetson **no** mueve un motor DC desde un GPIO (entrega µA; el motor pide
 ~0.5–2 A). Se necesita un **driver con puente H**. Camino drop-in con el stack:
