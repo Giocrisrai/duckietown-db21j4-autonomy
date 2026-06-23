@@ -8,7 +8,7 @@ modernizado donde aporta valor:
 - **Seguir línea por visión clásica** (reutiliza `dt-core`, libera la GPU para una sola red).
 - **Planificación de ruta en dos capas**: reactiva (base que siempre funciona) + global A*/BFS cargable.
 - **Diagnóstico, calibración, monitoreo de salud por red y validación en un comando**, todo sin depender del shell `dts`.
-- **Entorno de entrenamiento reproducible** con **simulación y validación local** (sin robot) — **200 tests**.
+- **Entorno de entrenamiento reproducible** con **simulación y validación local** (sin robot) — **324 tests**.
 
 > **Revisión profunda y brechas vs Duckietown oficial:** [`docs/revision-profunda.md`](docs/revision-profunda.md) ← empieza por aquí para el panorama completo.
 >
@@ -49,11 +49,17 @@ docs/             # Revision profunda, spec, plan, runbook, calibracion, hardwar
 ## Quickstart (desarrollo en Mac/Colab)
 
 ```bash
+make                # lista TODOS los comandos (repo + dispositivo) con su ayuda
 make setup          # instala dependencias de desarrollo (uv)
-make test           # corre toda la suite (200 tests)
+make test           # corre toda la suite (324 tests)
 make sim            # simula el cerebro de planificacion (sin robot)
 make sim-auto       # mision AUTONOMA end-to-end: cerebro completo en lazo cerrado
 ```
+
+> **Interfaz única:** `make help` (o `make` a secas) lista todo en un solo lugar —
+> desarrollo (`setup/test/sim*/train`), dispositivo (`diagnose/sensors/validate-robot/
+> calibrate-*/monitor/bypass-info`) e imagen (`build-image/deploy/flash`). Mismos
+> comandos en el repo y en el robot.
 
 El **cerebro autónomo integrado** (`duckietown_planning.autonomy.AutonomousController`)
 une en un solo controlador: fusión de obstáculos (YOLO26+ToF) → FSM de conducción →
@@ -73,7 +79,7 @@ make validate W=best.pt DATA=duckietown.yaml           # reporta mAP50 y umbral
 Notebook GPU: [`training/notebooks/colab_yolo26.ipynb`](training/notebooks/colab_yolo26.ipynb).
 Resultados: [`docs/resultados-entrenamiento.md`](docs/resultados-entrenamiento.md) (0.833 sintético → 0.871 → **0.937** real; transfer learning +0.273) · [`docs/resultados-rl.md`](docs/resultados-rl.md).
 
-## Validación local (sin robot) — 200 tests
+## Validación local (sin robot) — 324 tests
 
 `make test` cubre, con TDD: config/dataset/export de entrenamiento; pre/post-proceso de
 visión (letterbox, escala, filtro); multi-cámara y calibración; AprilTags; política de
@@ -85,12 +91,21 @@ vía `object_detection.onnx_inference` (mismo pre/post-proceso que la ruta Tenso
 
 ## En el robot
 
-### Validación de hardware en un comando
+Mismos comandos `make` (envuelven los `tools/`); ver `make help`.
+
+### Diagnóstico y validación de hardware en un comando
 
 ```bash
-sudo bash tools/validate_robot.sh            # prueba todo SIN mover motores
-sudo bash tools/validate_robot.sh --motors   # incluye girar motores (¡ruedas en el aire!)
+make diagnose                  # veredicto automatico del bus I2C (stuck_low / controlador) + pasos
+make sensors BUS=1             # prueba IMU/ToF/OLED en el bus indicado          [sudo]
+make validate-robot            # prueba TODO el hardware SIN mover motores       [sudo]
+make validate-robot-motors     # incluye girar motores (¡RUEDAS EN EL AIRE!)     [sudo]
+make bypass-info               # cableado de bypass si la HUT esta danada
 ```
+
+Si la HUT I2C está dañada, `make diagnose` lo dice y `make bypass-info` da el cableado
+directo (sensores al header + driver de motor externo @0x60) — ver
+[`docs/bypass-hut-cableado-directo.md`](docs/bypass-hut-cableado-directo.md).
 
 Corre con **compuerta de seguridad por el bus I2C**: preflight (escanea PCA9685/IMU/ToF/OLED) →
 sensores → cámara → calibración → motores (solo si el bus responde y el PCA9685 está presente).
@@ -100,8 +115,8 @@ secuencia segura de `control/motor_test.py` (PWM ≤ 40%, siempre termina libera
 ### Calibración
 
 ```bash
-python3 tools/calibrate.py generate --robot <host> --camera pi-m12   # base de fabrica
-python3 tools/calibrate.py validate config/calibrations/kinematics/<host>.yaml
+make calibrate-generate HOST=<host> CAMERA=pi-m12                       # base de fabrica
+make calibrate-validate CAL=config/calibrations/kinematics/<host>.yaml
 ```
 
 Genera/valida la base de fábrica (cinemática + intrínsecos). La **calibración fina** (ruedas con
@@ -111,19 +126,24 @@ procedimiento oficial en [`docs/revision-profunda.md`](docs/revision-profunda.md
 ### Monitoreo de salud por red
 
 ```bash
-python3 diagnostics/run_monitor.py     # expone estado OK/DEGRADED/FAULT por HTTP JSON
+make monitor     # expone estado OK/DEGRADED/FAULT por HTTP JSON
 ```
 
-### Despliegue / arranque
+### Imagen / despliegue / flasheo (sin dts)
 
-Ver [`docs/runbook-competencia.md`](docs/runbook-competencia.md) y [`docs/multiplataforma.md`](docs/multiplataforma.md):
-preparar el robot (`tools/install_dts.sh`, `tools/check_robot.sh`), flashear (`tools/flash_sd.sh`,
-distro `ente`), construir el engine TRT (`tools/build_trt_engine.sh`), `dts devel build` y
-`roslaunch bringup full_stack.launch`.
+```bash
+make build-image                                  # imagen arm64 del robot (buildx)
+make flash IMG=jetson.img.xz DEV=/dev/rdiskN      # flashea la SD (macOS: rdiskN, Linux: sdX)
+make deploy MODE=registry HOST=<host> IMG=<ref>   # despliega y levanta en el robot
+```
+
+Detalle y alternativas (engine TRT, `dts`, `roslaunch bringup full_stack.launch`) en
+[`docs/runbook-competencia.md`](docs/runbook-competencia.md) y
+[`docs/multiplataforma.md`](docs/multiplataforma.md).
 
 ## Estado honesto
 
-- **Sólido y testeado (200 tests):** toda la capa algorítmica/CPU (planning, percepción,
+- **Sólido y testeado (324 tests):** toda la capa algorítmica/CPU (planning, percepción,
   training, control, diagnósticos, RL, simulación).
 - **Implementado pero NO verificado en hardware:** los nodos ROS, el engine TensorRT real, el
   envío de motores y la calibración fina. El lazo de marcha se apoya en el `lane_controller`
@@ -138,6 +158,6 @@ distro `ente`), construir el engine TRT (`tools/build_trt_engine.sh`), `dts deve
 ## Plus sobre el stack oficial
 
 Independencia de `dts` (build/deploy/flash propios) · multiplataforma (cualquier Linux/macOS +
-contenedor dev) · gestor `uv` · CI matriz (Ubuntu+macOS, py3.11/3.12) · transfer learning
+contenedor dev) · gestor `uv` · CI matriz (Ubuntu+macOS, py3.10-3.13) · transfer learning
 validado (+0.273 mAP) · diagnóstico de fallas HW + red · monitoreo de salud EN VIVO por red ·
 validación E2E en un comando · soporte de cualquier modelo de cámara (autodetección).

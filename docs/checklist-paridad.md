@@ -40,7 +40,7 @@ Estados: ✅ paridad · ⭐ mejorado/plus · ♻️ reusa el driver oficial (no 
 | Independencia de `dts` (build/deploy/flash propios) | ⭐ plus |
 | Multiplataforma (cualquier Linux/macOS) + contenedor dev | ⭐ plus |
 | Gestor `uv` (estado del arte) | ⭐ plus |
-| CI matriz (Ubuntu+macOS, py3.11/3.12) + Docker | ⭐ plus |
+| CI matriz (Ubuntu+macOS, py3.10-3.13) + Docker | ⭐ plus |
 | Transfer learning validado (+0.273 mAP) | ⭐ plus |
 | Diagnóstico de fallas HW + red | ⭐ plus |
 | Monitoreo de salud EN VIVO por red (HTTP JSON, debounce, OK/DEGRADED/FAULT) | ⭐ plus |
