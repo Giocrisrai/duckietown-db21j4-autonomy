@@ -54,7 +54,9 @@ def main(argv=None):
         for i in range(plan["count"]):
             ok, frame = cap.read()
             if not ok or frame is None:
-                print(f"  [{i}] sin frame, reintentando..."); time.sleep(args.interval); continue
+                print(f"  [{i}] sin frame, reintentando...")
+                time.sleep(args.interval)
+                continue
             h, w = frame.shape[:2]
             sano, _ = check_frame(frame)
             sanos += int(sano)

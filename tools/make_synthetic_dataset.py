@@ -13,7 +13,6 @@ Genera:
     datasets/duckietown.yaml
 """
 import argparse
-import math
 from pathlib import Path
 
 import cv2

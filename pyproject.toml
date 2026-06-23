@@ -18,3 +18,14 @@ pythonpath = [
   "platform_support",
 ]
 testpaths = ["training/tests", "perception/tests", "planning/tests", "simulation/tests", "control/tests", "diagnostics/tests", "rl/tests", "platform_support/tests", "bringup/tests"]
+
+[tool.ruff]
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+# Enforcamos la familia F (pyflakes): nombres indefinidos, imports/variables sin
+# usar -> errores REALES (esto cazo un bug real: ctrl_last_turn usado sin inicializar
+# en sim_mission). Ignoramos los E cosmeticos/intencionales de este repo:
+#   E402: los CLIs en tools/ hacen sys.path.insert ANTES de importar (deliberado);
+#   E701/E702/E731/E741: estilo (one-liners, lambdas, nombre 'l'), no son bugs.
+ignore = ["E402", "E701", "E702", "E731", "E741"]

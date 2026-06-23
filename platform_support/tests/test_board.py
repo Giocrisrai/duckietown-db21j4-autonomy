@@ -1,6 +1,6 @@
 """Tests de deteccion/configuracion de placa (hardware-agnostico)."""
 import pytest
-from board import detect_board, board_config, inference_backend, BOARDS
+from board import detect_board, board_config, inference_backend
 
 
 def test_detecta_jetson_nano():

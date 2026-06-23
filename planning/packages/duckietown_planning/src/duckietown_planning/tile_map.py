@@ -357,7 +357,7 @@ def _demo():
     g = intersection_graph(tm)
     print(f"  intersecciones     : {len(g)}  (3way/4way derivadas de los tiles)")
     aristas = g[(2, 2)]
-    print(f"  desde el 4way (2,2): " + ", ".join(f"{ex}->{to}" for ex, to, _ in aristas))
+    print("  desde el 4way (2,2): " + ", ".join(f"{ex}->{to}" for ex, to, _ in aristas))
     # Ejemplo de giro: llegando al 4way hacia el SUR y saliendo al ESTE -> izquierda.
     print(f"  giro ejemplo       : llego al 4way hacia S, salgo al E -> "
           f"{relative_turn('S', 'E')}")

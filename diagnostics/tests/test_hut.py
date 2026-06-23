@@ -1,5 +1,5 @@
 """Tests de deteccion del MCU serial de la HUT (DB21-J4)."""
-from hut import is_hut_device, find_hut_serial, HUT_USB_VENDOR, HUT_USB_PRODUCT
+from hut import is_hut_device, find_hut_serial
 
 
 def test_identifica_mcu_hut():

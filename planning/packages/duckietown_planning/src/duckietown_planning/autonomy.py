@@ -21,7 +21,7 @@ elegido, la decision de obstaculo y si ya se llego al destino.
 """
 from .fsm import (
     DrivingFSM, LANE_FOLLOWING, APPROACHING_INTERSECTION, AT_INTERSECTION,
-    TURNING, STOPPED,
+    TURNING,
 )
 from . import obstacle_fusion
 from .intersection_policy import choose_turn

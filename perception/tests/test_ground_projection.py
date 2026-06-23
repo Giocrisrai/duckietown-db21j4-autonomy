@@ -1,5 +1,4 @@
 """Tests de proyeccion a tierra / calibracion extrinseca (homografia)."""
-import math
 import numpy as np
 import pytest
 

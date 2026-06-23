@@ -87,7 +87,7 @@ def run_mission_image_loop(graph, start, goal, seg_len=1.0, off0=0.03,
 
     seg_idx = 0
     s, off, dpsi = 0.0, float(off0), 0.0
-    turn_count, pending_turn_done = 0, False
+    turn_count, pending_turn_done, ctrl_last_turn = 0, False, None
     prev_state, turns_taken, max_off = None, [], abs(off0)
     n_stops, signs_detected = 0, []
     reached, ticks = False, 0

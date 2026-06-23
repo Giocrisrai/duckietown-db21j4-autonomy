@@ -25,10 +25,10 @@ sys.path.insert(0, str(ROOT / "planning" / "packages" / "duckietown_planning" / 
 sys.path.insert(0, str(ROOT / "perception" / "packages" / "object_detection" / "src"))
 
 from duckietown_planning.calibration import (  # noqa: E402
-    validate_kinematics, save_kinematics, load_kinematics, CalibrationError,
+    validate_kinematics, save_kinematics, CalibrationError,
 )
 from object_detection.camera_calibration import (  # noqa: E402
-    validate_intrinsics, save_intrinsics, load_intrinsics, CameraCalibrationError,
+    validate_intrinsics, save_intrinsics, CameraCalibrationError,
 )
 from object_detection.camera_support import default_intrinsics, supported_cameras  # noqa: E402
 

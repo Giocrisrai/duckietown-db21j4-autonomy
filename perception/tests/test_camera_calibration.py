@@ -1,6 +1,5 @@
 """Tests de calibracion de camara (intrinsecos formato CameraInfo)."""
 import pytest
-import numpy as np
 from object_detection.camera_calibration import (
     validate_intrinsics, camera_matrix, dist_coeffs, CameraCalibrationError,
     save_intrinsics, load_intrinsics,

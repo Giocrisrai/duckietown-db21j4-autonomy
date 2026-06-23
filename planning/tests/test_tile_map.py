@@ -1,7 +1,6 @@
 """Tests de navegacion tile-to-tile sobre el mapa de tiles oficial de Duckietown."""
 from pathlib import Path
 
-import pytest
 
 from duckietown_planning.tile_map import (
     parse_tile, tile_exits, TileMap, load_tile_map, tile_route,

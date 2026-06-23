@@ -5,3 +5,4 @@ opencv-python-headless>=4.8
 onnx>=1.16
 onnxruntime>=1.17
 gymnasium>=1.0
+ruff>=0.6

@@ -1,5 +1,4 @@
 """Tests para la lógica de freno de emergencia basada en ToF VL53L0X."""
-import math
 from duckietown_planning.safety import should_brake, should_brake_range
 
 

@@ -1,6 +1,5 @@
 """Test del lazo cerrado IMAGEN->IMAGEN: el mundo renderiza la camara, el cerebro
 conduce solo con esa imagen y el modelo cinematico actualiza la pose."""
-import math
 
 from sim_closed_loop import run_image_loop
 

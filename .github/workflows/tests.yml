@@ -24,6 +24,8 @@ jobs:
         run: |
           pip install uv
           uv pip install --system -r requirements-dev.txt
+      - name: Lint (ruff) — caza nombres indefinidos / imports sin usar
+        run: python -m ruff check .
       - name: Correr tests
         run: python -m pytest -q
 
@@ -34,3 +36,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build imagen dev (uv) y correr la suite en contenedor
         run: docker build -f Dockerfile.dev -t dt-newver-dev . && docker run --rm dt-newver-dev
+
+  dockerfile-robot-check:
+    name: lint del Dockerfile del robot (build --check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar el Dockerfile del robot sin construirlo (BuildKit --check)
+        # Caza la clase de fallo de deploy (p.ej. CMD mal formado) sin el build arm64 pesado.
+        run: docker build --check -f Dockerfile .

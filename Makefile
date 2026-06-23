@@ -40,8 +40,11 @@ setup:           ## instala dependencias de desarrollo (Mac/Colab)
 test:            ## corre toda la suite de tests
 	python -m pytest -q
 
-ci:              ## corre lo mismo que CI (deps + suite completa)
-	pip install -q uv && uv pip install --system -q -r requirements-dev.txt && python -m pytest -q
+lint:            ## linter (ruff): caza nombres indefinidos, imports/vars sin usar
+	python -m ruff check .
+
+ci:              ## corre lo mismo que CI (lint + suite completa)
+	python -m ruff check . && python -m pytest -q
 
 clean:           ## borra caches y artefactos (__pycache__, .pytest_cache, *.pyc)
 	find . -path ./.venv -prune -o -name __pycache__ -exec rm -rf {} + 2>/dev/null; \
