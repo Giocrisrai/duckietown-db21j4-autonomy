@@ -2,7 +2,7 @@
 # `make` o `make help` lista todo. Variables: BUS=1 HOST=prueba CAMERA=pi-m12
 #   IMG=<imagen> DEV=<disco> MODE=registry|tar CAL=<yaml>
 .PHONY: help setup test ci clean lint sim sim-auto sim-loop sim-mission tile-route \
-        dataset-check train export validate teleop \
+        dataset-check train export validate teleop dry-run \
         rl-deps rl-train rl-eval \
         diagnose sensors detect-motors validate-robot validate-robot-motors \
         calibrate-generate calibrate-validate monitor bypass-info \
@@ -69,6 +69,10 @@ tile-route:      ## demo: navegacion tile-to-tile sobre un mapa de tiles complet
 
 teleop:          ## manejo MANUAL: mapea throttle/steer a ruedas (uso: make teleop T=0.6 S=0.2)
 	PYTHONPATH=control python -m teleop $(T) $(S)
+
+dry-run:         ## captura 1 frame del robot y corre el lazo percepcion->duty SIN mover motores
+	ssh $(SSH) 'timeout 12 gst-launch-1.0 -e nvarguscamerasrc num-buffers=1 ! "video/x-raw(memory:NVMM),width=640,height=480" ! nvjpegenc ! filesink location=/tmp/dry.jpg' >/dev/null 2>&1
+	scp $(SSH):/tmp/dry.jpg /tmp/dry.jpg >/dev/null 2>&1 && python3 tools/lane_follow_dryrun.py /tmp/dry.jpg
 
 # ───────────────────────── RL / gym (entrena FUERA del robot) ─────────────────────
 rl-deps:         ## instala dependencias de RL (gymnasium + stable-baselines3)
