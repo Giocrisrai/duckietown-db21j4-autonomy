@@ -141,11 +141,21 @@ Genera/valida la base de fábrica (cinemática + intrínsecos). La **calibració
 regla, cámara intrínseca y **extrínseca** con tablero 3.1 cm) se hace en el robot — ver el
 procedimiento oficial en [`docs/revision-profunda.md`](docs/revision-profunda.md) §3.
 
-### Monitoreo de salud por red
+### Operación, grabación y monitoreo (por SSH)
 
 ```bash
-make monitor     # expone estado OK/DEGRADED/FAULT por HTTP JSON
+make ssh                       # shell en el robot (var: SSH=prueba@192.168.55.1)
+make camera-grab               # captura 1 frame -> ./cam.jpg
+make record COUNT=100          # graba 100 frames de camara -> ./dataset/ (para entrenar)
+make monitor                   # (en el robot) expone salud OK/DEGRADED/FAULT por HTTP JSON
+make health                    # (desde el Mac) consulta ese JSON
+make start / make stop / make logs   # ciclo del stack en el robot (docker compose)
 ```
+
+`make record`/`make camera-grab` usan **gstreamer** en el robot (sin dependencias);
+el grabador más completo (salud de frame + `manifest.json`) es
+[`tools/record_dataset.py`](tools/record_dataset.py) (lógica pura testeada). CI local
+con `make ci`; limpiar con `make clean`.
 
 ### Imagen / despliegue / flasheo (sin dts)
 
