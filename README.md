@@ -189,3 +189,7 @@ Independencia de `dts` (build/deploy/flash propios) · multiplataforma (cualquie
 contenedor dev) · gestor `uv` · CI matriz (Ubuntu+macOS, py3.10-3.13) · transfer learning
 validado (+0.273 mAP) · diagnóstico de fallas HW + red · monitoreo de salud EN VIVO por red ·
 validación E2E en un comando · soporte de cualquier modelo de cámara (autodetección).
+
+## Licencia
+
+MIT — ver [`LICENSE`](LICENSE). Este stack corre sobre la distro oficial de Duckietown (`ente`) y reutiliza `dt-core` como dependencia; esos componentes conservan su propia licencia.

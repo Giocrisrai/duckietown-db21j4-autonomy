@@ -3,7 +3,7 @@
   <name>object_detection</name>
   <version>0.1.0</version>
   <description>Deteccion de objetos YOLO26 sobre TensorRT para Duckiebot DB21-J4.</description>
-  <maintainer email="giocrisrai@gmail.com">giocrisrai</maintainer>
+  <maintainer email="contact@giocrisrai.com">giocrisrai</maintainer>
   <license>MIT</license>
   <buildtool_depend>catkin</buildtool_depend>
   <depend>rospy</depend>
