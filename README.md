@@ -1,5 +1,12 @@
 # duckietown_new_version — Stack modernizado para Duckiebot DB21-J4
 
+![Tests](https://img.shields.io/badge/tests-324%20passing-brightgreen?style=flat-square)
+![Jetson Nano](https://img.shields.io/badge/Jetson%20Nano-TensorRT-76B900?style=flat-square&logo=nvidia&logoColor=white)
+![YOLO26](https://img.shields.io/badge/YOLO26-mAP50%200.937-blue?style=flat-square)
+![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+
+> **English:** A modern, robust autonomy stack for the Duckiebot DB21-J4 (NVIDIA Jetson Nano, end-of-life JetPack 4.6 / Python 3.6), built on the official Duckietown `ente` distro. YOLO26 object detection trained off-robot and deployed with TensorRT (mAP50 0.937), classical-vision lane following, two-layer route planning (reactive + A*/BFS), health monitoring, and a Gymnasium + PPO environment — 324 tests and closed-loop simulation without the robot. Documentation below is in Spanish.
+
 Stack de autonomía **moderno, robusto y extensible** para un Duckiebot **DB21-J4**
 (NVIDIA Jetson Nano 4GB), construido **sobre la distro Duckietown `ente`** y
 modernizado donde aporta valor:
