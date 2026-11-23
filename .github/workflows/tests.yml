@@ -44,4 +44,4 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validar el Dockerfile del robot sin construirlo (BuildKit --check)
         # Caza la clase de fallo de deploy (p.ej. CMD mal formado) sin el build arm64 pesado.
-        run: docker build --check -f Dockerfile .
+        run: docker build --check --platform linux/arm64 -f Dockerfile .

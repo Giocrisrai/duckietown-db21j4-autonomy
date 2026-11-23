@@ -28,4 +28,7 @@ extend-exclude = [".venv"]
 # en sim_mission). Ignoramos los E cosmeticos/intencionales de este repo:
 #   E402: los CLIs en tools/ hacen sys.path.insert ANTES de importar (deliberado);
 #   E701/E702/E731/E741: estilo (one-liners, lambdas, nombre 'l'), no son bugs.
+# El conjunto de reglas se fija a mano: sin esto, cada version de ruff trae sus
+# propios valores por defecto y el CI (ruff sin fijar) deja de coincidir con local.
+select = ["E4", "E7", "E9", "F"]
 ignore = ["E402", "E701", "E702", "E731", "E741"]
