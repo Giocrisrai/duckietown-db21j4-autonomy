@@ -5,7 +5,10 @@ ARG ARCH=arm64v8
 ARG DISTRO=ente
 ARG BASE_IMAGE=dt-ros-commons
 ARG BASE_TAG=${DISTRO}-${ARCH}
-FROM duckietown/${BASE_IMAGE}:${BASE_TAG}
+# El robot es arm64: la plataforma de la imagen base se declara para que el build
+# (y el chequeo en CI, que corre en amd64) no dependan de la maquina que construye.
+ARG BASE_PLATFORM=linux/arm64
+FROM --platform=${BASE_PLATFORM} duckietown/${BASE_IMAGE}:${BASE_TAG}
 
 ARG REPO_PATH="${CATKIN_WS_DIR}/src/duckietown_new_version"
 RUN mkdir -p "${REPO_PATH}"

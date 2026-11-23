@@ -29,6 +29,9 @@ def make_dummy_onnx(path, dets):
 
     # Crea el modelo con opset 12
     model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 12)])
+    # onnx reciente escribe por defecto una version de IR que el onnxruntime de
+    # Python 3.10 no lee (maximo 11). La IR 8 corresponde al opset 12 y la aceptan todos.
+    model.ir_version = 8
 
     # Guarda el modelo
     onnx.save(model, path)
