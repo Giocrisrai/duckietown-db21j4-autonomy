@@ -1,11 +1,12 @@
-# duckietown_new_version — Stack modernizado para Duckiebot DB21-J4
+# Duckietown DB21-J4 — stack de autonomía modernizado
 
-![Tests](https://img.shields.io/badge/tests-324%20passing-brightgreen?style=flat-square)
+[![tests](https://github.com/Giocrisrai/duckietown-db21j4-autonomy/actions/workflows/tests.yml/badge.svg)](https://github.com/Giocrisrai/duckietown-db21j4-autonomy/actions/workflows/tests.yml)
+![Tests](https://img.shields.io/badge/tests-393%20passing-brightgreen?style=flat-square)
 ![Jetson Nano](https://img.shields.io/badge/Jetson%20Nano-TensorRT-76B900?style=flat-square&logo=nvidia&logoColor=white)
 ![YOLO26](https://img.shields.io/badge/YOLO26-mAP50%200.937-blue?style=flat-square)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
-> **English:** A modern, robust autonomy stack for the Duckiebot DB21-J4 (NVIDIA Jetson Nano, end-of-life JetPack 4.6 / Python 3.6), built on the official Duckietown `ente` distro. YOLO26 object detection trained off-robot and deployed with TensorRT (mAP50 0.937), classical-vision lane following, two-layer route planning (reactive + A*/BFS), health monitoring, and a Gymnasium + PPO environment — 324 tests and closed-loop simulation without the robot. Documentation below is in Spanish.
+> **English:** A modern, robust autonomy stack for the Duckiebot DB21-J4 (NVIDIA Jetson Nano, end-of-life JetPack 4.6 / Python 3.6), built on the official Duckietown `ente` distro. YOLO26 object detection trained off-robot and deployed with TensorRT (mAP50 0.937), classical-vision lane following, two-layer route planning (reactive + A*/BFS), health monitoring, and a Gymnasium + PPO environment — 393 tests and closed-loop simulation without the robot. Documentation below is in Spanish.
 
 Stack de autonomía **moderno, robusto y extensible** para un Duckiebot **DB21-J4**
 (NVIDIA Jetson Nano 4GB), construido **sobre la distro Duckietown `ente`** y
@@ -15,7 +16,7 @@ modernizado donde aporta valor:
 - **Seguir línea por visión clásica** (reutiliza `dt-core`, libera la GPU para una sola red).
 - **Planificación de ruta en dos capas**: reactiva (base que siempre funciona) + global A*/BFS cargable.
 - **Diagnóstico, calibración, monitoreo de salud por red y validación en un comando**, todo sin depender del shell `dts`.
-- **Entorno de entrenamiento reproducible** con **simulación y validación local** (sin robot) — **324 tests**.
+- **Entorno de entrenamiento reproducible** con **simulación y validación local** (sin robot) — **393 tests**.
 
 > **Revisión profunda y brechas vs Duckietown oficial:** [`docs/revision-profunda.md`](docs/revision-profunda.md) ← empieza por aquí para el panorama completo.
 >
@@ -58,7 +59,7 @@ docs/             # Revision profunda, spec, plan, runbook, calibracion, hardwar
 ```bash
 make                # lista TODOS los comandos (repo + dispositivo) con su ayuda
 make setup          # instala dependencias de desarrollo (uv)
-make test           # corre toda la suite (324 tests)
+make test           # corre toda la suite (393 tests)
 make sim            # simula el cerebro de planificacion (sin robot)
 make sim-auto       # mision AUTONOMA end-to-end: cerebro completo en lazo cerrado
 ```
@@ -104,7 +105,7 @@ make rl-eval                # evalua el agente vs la base PD
   Colab): la Jetson Nano es EOL y no entrena; la política aprendida se exporta como los
   modelos de visión.
 
-## Validación local (sin robot) — 324 tests
+## Validación local (sin robot) — 393 tests
 
 `make test` cubre, con TDD: config/dataset/export de entrenamiento; pre/post-proceso de
 visión (letterbox, escala, filtro); multi-cámara y calibración; AprilTags; política de
@@ -178,7 +179,7 @@ Detalle y alternativas (engine TRT, `dts`, `roslaunch bringup full_stack.launch`
 
 ## Estado honesto
 
-- **Sólido y testeado (324 tests):** toda la capa algorítmica/CPU (planning, percepción,
+- **Sólido y testeado (393 tests):** toda la capa algorítmica/CPU (planning, percepción,
   training, control, diagnósticos, RL, simulación).
 - **Implementado pero NO verificado en hardware:** los nodos ROS, el engine TensorRT real, el
   envío de motores y la calibración fina. El lazo de marcha se apoya en el `lane_controller`

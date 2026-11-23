@@ -9,7 +9,7 @@ Objetivo: ver qué nos faltó, qué conviene incorporar y qué NO copiar.
 
 ## Resumen ejecutivo (veredicto honesto)
 
-- **Capa algorítmica/CPU — sólida y bien testeada (324 tests):** percepción
+- **Capa algorítmica/CPU — sólida y bien testeada (393 tests):** percepción
   (letterbox/postproceso, multi-cámara, calibración, AprilTags), planificación
   (intersección reactiva, grafo+A*/BFS, localización, odometría, safety ToF),
   control (PID, teleop, secuencia de motores), simulación, diagnósticos, RL.
