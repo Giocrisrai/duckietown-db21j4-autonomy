@@ -1,7 +1,7 @@
 # Makefile — interfaz unica del stack DB21-J4 (repo + dispositivo).
 # `make` o `make help` lista todo. Variables: BUS=1 HOST=prueba CAMERA=pi-m12
 #   IMG=<imagen> DEV=<disco> MODE=registry|tar CAL=<yaml>
-.PHONY: help setup test ci clean lint sim sim-auto sim-loop sim-mission tile-route \
+.PHONY: help setup test ci clean lint sim sim-auto sim-loop sim-mission sim-video tile-route \
         dataset-check train export validate teleop dry-run \
         rl-deps rl-train rl-eval \
         diagnose sensors detect-motors validate-robot validate-robot-motors \
@@ -63,6 +63,9 @@ sim-loop:        ## demo: lazo cerrado imagen->imagen (el cerebro solo ve pixele
 
 sim-mission:     ## demo: mision completa multi-interseccion en lazo imagen->imagen
 	$(PYDEMO) python -m sim_mission
+
+sim-video:       ## graba en un GIF lo que ve el robot en una mision (docs/media/sim-mission.gif)
+	$(PYDEMO) python -m record_mission docs/media/sim-mission.gif
 
 tile-route:      ## demo: navegacion tile-to-tile sobre un mapa de tiles completo
 	PYTHONPATH=planning/packages/duckietown_planning/src python -m duckietown_planning.tile_map

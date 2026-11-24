@@ -99,6 +99,6 @@ defectuosa**. La cámara es IMX219 con `-121` = **flex CSI mal contactado**.
 5. Si con el header bien puesto el bus 1 sigue colgado → probar **otra HUT o
    batería**: el fallo está en la placa/chip, no en el montaje.
 
-> Nota: nada de esto es del software del stack. La suite (393 local; tambien corre en
+> Nota: nada de esto es del software del stack. La suite (397 local; tambien corre en
 > contenedor en la Jetson), la calibración base y el monitoreo por red funcionan;
 > el bloqueo es puramente el acople físico HUT↔Jetson y el flex de cámara.

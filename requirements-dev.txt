@@ -6,3 +6,4 @@ onnx>=1.16
 onnxruntime>=1.17
 gymnasium>=1.0
 ruff>=0.6
+pillow>=10.0   # solo para grabar el GIF de la mision (make sim-video)
